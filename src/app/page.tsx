@@ -12,32 +12,110 @@ import {
   CheckCircle2,
   Lock,
   Globe,
-  Star
+  Star,
+  Menu,
+  X
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+      setMobileMenuOpen(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen mesh-gradient overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 overflow-hidden">
       {/* Navigation */}
-      <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-5xl glass-heavy rounded-[32px] px-8 py-4 flex items-center justify-between animate-fadeIn">
+      <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-5xl bg-white/80 backdrop-blur-xl rounded-3xl px-8 py-4 flex items-center justify-between border border-white/20 shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-2xl shadow-lg shadow-blue-200">
+          <div className="bg-blue-600 p-2 rounded-2xl shadow-lg">
             <ShieldCheck className="text-white w-6 h-6" />
           </div>
           <span className="text-2xl font-black tracking-tight text-gray-900">SafeDrive</span>
         </div>
-        <div className="hidden md:flex items-center gap-10">
-          <a href="#features" className="text-sm font-bold text-gray-500 hover:text-blue-600 transition">Features</a>
-          <a href="#how-it-works" className="text-sm font-bold text-gray-500 hover:text-blue-600 transition">Network</a>
-          <a href="#security" className="text-sm font-bold text-gray-500 hover:text-blue-600 transition">Security</a>
+
+        {/* Desktop Menu */}
+        <div className="hidden md:flex items-center gap-8">
+          <button
+            onClick={() => scrollToSection('features')}
+            className="text-sm font-semibold text-gray-600 hover:text-blue-600 transition"
+          >
+            Features
+          </button>
+          <button
+            onClick={() => scrollToSection('how-it-works')}
+            className="text-sm font-semibold text-gray-600 hover:text-blue-600 transition"
+          >
+            How It Works
+          </button>
+          <button
+            onClick={() => scrollToSection('security')}
+            className="text-sm font-semibold text-gray-600 hover:text-blue-600 transition"
+          >
+            Security
+          </button>
         </div>
-        <Link href="/login" className="bg-gray-900 text-white px-8 py-3 rounded-2xl font-bold text-sm hover:bg-black transition-all shadow-xl shadow-gray-200">
-          Portal Login
-        </Link>
+
+        {/* Desktop CTA */}
+        <div className="hidden md:flex items-center gap-3">
+          <Link href="/register" className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold text-sm hover:bg-blue-700 transition shadow-lg">
+            Create Tag
+          </Link>
+          <Link href="/login" className="text-gray-600 hover:text-gray-900 px-4 py-3 font-semibold text-sm transition">
+            Login
+          </Link>
+        </div>
+
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition"
+        >
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="absolute top-full left-0 right-0 mt-4 bg-white rounded-2xl shadow-xl border border-gray-100 p-6 md:hidden">
+            <div className="space-y-4">
+              <button
+                onClick={() => scrollToSection('features')}
+                className="block w-full text-left text-gray-600 hover:text-blue-600 font-semibold transition"
+              >
+                Features
+              </button>
+              <button
+                onClick={() => scrollToSection('how-it-works')}
+                className="block w-full text-left text-gray-600 hover:text-blue-600 font-semibold transition"
+              >
+                How It Works
+              </button>
+              <button
+                onClick={() => scrollToSection('security')}
+                className="block w-full text-left text-gray-600 hover:text-blue-600 font-semibold transition"
+              >
+                Security
+              </button>
+              <hr className="border-gray-100" />
+              <Link href="/register" className="block bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold text-center hover:bg-blue-700 transition">
+                Create Tag
+              </Link>
+              <Link href="/login" className="block text-center text-gray-600 hover:text-gray-900 px-4 py-2 font-semibold transition">
+                Login
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
 
-      {/* Hero Section */}
+      {/* Hero Section - Keeping as requested */}
       <section className="relative pt-48 pb-32 px-6">
         <div className="max-w-7xl mx-auto flex flex-col items-center text-center relative z-10">
           <div className="inline-flex items-center gap-2 px-6 py-2 bg-blue-50 text-blue-600 rounded-full text-xs font-black uppercase tracking-[0.2em] mb-10 animate-fadeIn border border-blue-100 shadow-sm">
@@ -46,7 +124,7 @@ export default function LandingPage() {
 
           <h1 className="text-6xl md:text-8xl font-black text-gray-900 leading-[0.95] tracking-tighter mb-8 animate-fadeIn">
             Secure Your Vehicle <br />
-            <span className="text-blue-600 text-glow-blue relative">
+            <span className="text-blue-600 relative">
               With Intelligence.
               <div className="absolute -bottom-2 left-0 w-full h-2 bg-blue-100/50 -rotate-1 rounded-full"></div>
             </span>
@@ -61,199 +139,172 @@ export default function LandingPage() {
               Get Started Free
               <ArrowRight className="group-hover:translate-x-2 transition-transform" />
             </Link>
-            <div className="flex items-center -space-x-3">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="w-10 h-10 rounded-full border-4 border-white bg-gray-100 flex items-center justify-center overflow-hidden">
-                  <img src={`https://i.pravatar.cc/150?u=${i}`} alt="user" />
-                </div>
-              ))}
-              <div className="pl-6 text-sm font-bold text-gray-400">Trusted by over 10k users</div>
-            </div>
+            <Link href="/login" className="group flex items-center gap-3 bg-white text-gray-900 px-10 py-5 rounded-3xl font-bold text-lg hover:bg-gray-50 transition-all shadow-xl border border-gray-200">
+              Admin Portal
+              <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
+            </Link>
+          </div>
+
+          <div className="flex items-center mt-12 -space-x-3">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="w-10 h-10 rounded-full border-4 border-white bg-gray-100 flex items-center justify-center overflow-hidden">
+                <img src={`https://i.pravatar.cc/150?u=${i}`} alt="user" className="w-full h-full object-cover" />
+              </div>
+            ))}
+            <div className="pl-6 text-sm font-bold text-gray-400">Trusted by over 10k users</div>
           </div>
         </div>
 
         {/* Hero Background Elements */}
-        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute bottom-0 -right-20 w-[500px] h-[500px] bg-blue-100/40 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 -right-20 w-[500px] h-[500px] bg-blue-100/40 rounded-full blur-3xl"></div>
       </section>
 
-      {/* Stats Grid */}
-      <section className="max-w-6xl mx-auto px-6 mb-32 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+      {/* Quick Stats */}
+      <section className="max-w-6xl mx-auto px-6 mb-20 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
         {[
           { label: "Active Tags", val: "100k+" },
           { label: "Rapid Scans", val: "2.4M" },
           { label: "Privacy Rating", val: "99.9%" },
-          { label: "Emergency Res", val: "<30s" }
+          { label: "Emergency Response", val: "<30s" }
         ].map((stat, i) => (
-          <div key={i} className="glass-heavy p-8 rounded-[40px] text-center transition-transform hover:-translate-y-2">
-            <p className="text-4xl font-black text-gray-900 mb-2">{stat.val}</p>
-            <p className="text-xs font-black uppercase text-gray-400 tracking-[0.1em]">{stat.label}</p>
+          <div key={i} className="bg-white/80 backdrop-blur-sm p-6 rounded-3xl text-center hover:shadow-lg transition-all border border-white/50">
+            <p className="text-3xl font-black text-gray-900 mb-1">{stat.val}</p>
+            <p className="text-xs font-semibold uppercase text-gray-500 tracking-wider">{stat.label}</p>
           </div>
         ))}
       </section>
 
-      {/* Main Features */}
-      <section id="features" className="max-w-7xl mx-auto px-6 py-32">
-        <div className="text-center mb-24">
-          <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight mb-4">Everything You Need <br /> To Stay Safe</h2>
-          <p className="text-gray-500 font-bold max-w-xl mx-auto">One tag. Unlimited possibilities for your vehicle's safety and convenience.</p>
+      {/* Key Features */}
+      <section id="features" className="max-w-7xl mx-auto px-6 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight mb-4">
+            Everything You Need <br /> To Stay Safe
+          </h2>
+          <p className="text-gray-500 font-medium max-w-xl mx-auto text-lg">
+            One tag. Unlimited possibilities for your vehicle's safety and convenience.
+          </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
-              icon: <QrCode className="w-8 h-8" />,
-              title: "Encrypted QR Tags",
-              desc: "Dynamic identifiers that link to your contact preferences without revealing sensitive data.",
-              color: "bg-blue-600"
+              icon: <QrCode className="w-7 h-7" />,
+              title: "Smart QR Tags",
+              desc: "Dynamic identifiers that protect your privacy while enabling instant contact.",
+              color: "from-blue-500 to-blue-600"
             },
             {
-              icon: <ShieldAlert className="w-8 h-8" />,
-              title: "Rapid Emergency Response",
-              desc: "Critical accident alerts sent instantly to your emergency contacts with one tap.",
-              color: "bg-red-500"
+              icon: <ShieldAlert className="w-7 h-7" />,
+              title: "Emergency Response",
+              desc: "Critical alerts sent instantly to your emergency contacts with GPS location.",
+              color: "from-red-500 to-rose-600"
             },
             {
-              icon: <Lock className="w-8 h-8" />,
-              title: "Masked Communication",
-              desc: "Talk to anyone who scans your car via our secure, private VOIP and messaging tunnel.",
-              color: "bg-gray-900"
-            },
-            {
-              icon: <Globe className="w-8 h-8" />,
-              title: "Fleet Dashboard",
-              desc: "Manage multiple vehicles from a single high-end portal with real-time analytics.",
-              color: "bg-indigo-600"
-            },
-            {
-              icon: <Smartphone className="w-8 h-8" />,
-              title: "Mobile First Design",
-              desc: "Optimized for the road. Fast loading, high contrast, and easy to use on any device.",
-              color: "bg-emerald-600"
-            },
-            {
-              icon: <CheckCircle2 className="w-8 h-8" />,
-              title: "Zero Setup Cost",
-              desc: "Free to register, simple to print, and active in seconds. No complex hardware needed.",
-              color: "bg-amber-500"
+              icon: <Lock className="w-7 h-7" />,
+              title: "Privacy Protection",
+              desc: "Secure communication without revealing your personal phone number.",
+              color: "from-gray-700 to-gray-900"
             }
           ].map((feat, i) => (
-            <div key={i} className="bg-white p-12 rounded-[48px] border border-gray-100 shadow-sm hover:shadow-2xl transition-all group hover:-translate-y-2">
-              <div className={`${feat.color} w-16 h-16 rounded-3xl flex items-center justify-center text-white mb-8 shadow-lg group-hover:scale-110 transition-transform`}>
+            <div key={i} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl transition-all group hover:-translate-y-1">
+              <div className={`w-14 h-14 bg-gradient-to-br ${feat.color} rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg group-hover:scale-110 transition-transform`}>
                 {feat.icon}
               </div>
-              <h3 className="text-2xl font-black text-gray-900 mb-4">{feat.title}</h3>
-              <p className="text-gray-500 font-medium leading-relaxed">{feat.desc}</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">{feat.title}</h3>
+              <p className="text-gray-600 font-medium leading-relaxed">{feat.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Showcase Section */}
-      <section className="bg-gray-900 py-32 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-20 items-center">
-          <div className="space-y-10 relative z-10">
-            <div className="inline-flex items-center gap-2 px-6 py-2 bg-white/10 text-white rounded-full text-xs font-black uppercase tracking-widest border border-white/10">
-              Live Preview
-            </div>
-            <h2 className="text-5xl md:text-6xl font-black text-white leading-tight tracking-tight">
-              Powerful Tools <br />
-              <span className="text-blue-400">At Your Fingertips.</span>
-            </h2>
-            <div className="space-y-6">
-              {[
-                "Instant PWA access for all scanners",
-                "Advanced masking logic for privacy",
-                "Real-time scan geolocation logs",
-                "Single-click emergency bypass"
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-4 text-white/70 font-medium">
-                  <CheckCircle2 className="text-blue-400" size={20} />
-                  {item}
+      {/* How It Works */}
+      <section id="how-it-works" className="bg-gray-50 py-20">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <h2 className="text-4xl font-black text-gray-900 mb-12">How It Works</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { step: "1", title: "Create & Print", desc: "Generate your unique QR code and print it for your vehicle" },
+              { step: "2", title: "Someone Scans", desc: "When scanned, they can contact you securely without seeing your number" },
+              { step: "3", title: "Stay Protected", desc: "Your privacy is maintained while enabling helpful communication" }
+            ].map((item, i) => (
+              <div key={i} className="space-y-4">
+                <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-lg mx-auto">
+                  {item.step}
                 </div>
-              ))}
-            </div>
-            <Link href="/register" className="inline-flex bg-white text-gray-900 px-10 py-5 rounded-3xl font-black text-lg hover:bg-blue-50 transition-all shadow-2xl">
-              Create Your Free Tag
-            </Link>
+                <h3 className="text-xl font-bold text-gray-900">{item.title}</h3>
+                <p className="text-gray-600">{item.desc}</p>
+              </div>
+            ))}
           </div>
+        </div>
+      </section>
 
-          <div className="relative animate-float">
-            <div className="bg-blue-600/20 absolute -inset-20 blur-[100px] rounded-full"></div>
-            <div className="glass-heavy rounded-[60px] p-8 border border-white/10 relative z-10 shadow-2xl overflow-hidden aspect-[4/3] flex flex-col">
-              <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5">
-                <div className="flex gap-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                  <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
-                  <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                </div>
-                <div className="px-4 py-1.5 bg-white/5 rounded-full text-[10px] text-white/40 font-black uppercase tracking-widest">
-                  SafeDrive v2.0
+      {/* Security */}
+      <section id="security" className="py-20">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <h2 className="text-4xl font-black text-gray-900 mb-12">Bank-Level Security</h2>
+          <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div className="text-left">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Your Data is Safe</h3>
+                <div className="space-y-3">
+                  {[
+                    "End-to-end encryption",
+                    "No personal data stored",
+                    "GDPR compliant",
+                    "Zero tracking"
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <CheckCircle2 className="text-emerald-500" size={20} />
+                      <span className="font-medium text-gray-700">{item}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="flex-grow flex flex-col items-center justify-center text-center space-y-6">
-                <div className="w-32 h-32 bg-white rounded-3xl flex items-center justify-center relative shadow-2xl">
-                  <QrCode size={80} className="text-gray-900" />
-                  <div className="absolute top-0 right-0 p-2 bg-blue-600 rounded-full -mr-3 -mt-3 border-4 border-gray-900">
-                    <Zap size={16} className="text-white" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-white font-black text-2xl">Toyota Camry • MH 12 AB 9999</p>
-                  <p className="text-white/40 font-bold">Privacy Masking Enabled</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4 w-full">
-                  <div className="bg-white/5 rounded-3xl p-4 border border-white/5">
-                    <p className="text-[10px] text-white/30 font-black uppercase mb-1">Total Scans</p>
-                    <p className="text-2xl font-black text-white">421</p>
-                  </div>
-                  <div className="bg-red-500/10 rounded-3xl p-4 border border-red-500/10">
-                    <p className="text-[10px] text-red-400 font-black uppercase mb-1">Emergency</p>
-                    <p className="text-2xl font-black text-red-400">0</p>
-                  </div>
-                </div>
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-8 flex items-center justify-center">
+                <ShieldCheck size={120} className="text-blue-600" />
               </div>
             </div>
           </div>
         </div>
-
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-blue-600/10 blur-[150px]"></div>
       </section>
 
-      {/* CTA Footer */}
-      <footer className="py-32 px-6 bg-white border-t border-gray-100 text-center">
-        <div className="max-w-4xl mx-auto space-y-12">
-          <div className="bg-blue-600/10 w-24 h-24 rounded-[32px] flex items-center justify-center text-blue-600 mx-auto mb-10 shadow-inner">
-            <ShieldCheck size={48} />
-          </div>
-          <h2 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tight leading-[0.9]">
-            Ready to drive <br /> with confidence?
+      {/* Final CTA */}
+      <section className="py-20 px-6 text-center">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <h2 className="text-5xl md:text-6xl font-black text-gray-900 tracking-tight leading-tight">
+            Ready to protect <br /> your vehicle?
           </h2>
-          <p className="text-xl text-gray-500 font-medium max-w-xl mx-auto">
-            Join thousands of vehicle owners who prioritize safety and privacy through SafeDrive.
+          <p className="text-xl text-gray-500 font-medium max-w-2xl mx-auto">
+            Join thousands of smart vehicle owners who prioritize safety and privacy.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-10">
-            <Link href="/register" className="w-full sm:w-auto bg-gray-900 text-white px-12 py-5 rounded-3xl font-black text-lg hover:bg-black transition-all shadow-2xl">
-              Get Your Free Tag
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
+            <Link href="/register" className="w-full sm:w-auto bg-blue-600 text-white px-12 py-5 rounded-3xl font-bold text-lg hover:bg-blue-700 transition-all shadow-xl">
+              Create Your QR Tag
             </Link>
-            <Link href="/login" className="w-full sm:w-auto px-12 py-5 border-2 border-gray-100 rounded-3xl font-black text-lg hover:bg-gray-50 transition-all text-gray-600">
-              Admin Portal
+            <Link href="/login" className="w-full sm:w-auto px-12 py-5 border-2 border-gray-200 rounded-3xl font-bold text-lg hover:bg-gray-50 transition-all text-gray-700">
+              Admin Login
             </Link>
           </div>
+        </div>
+      </section>
 
-          <div className="pt-32 flex flex-col md:flex-row justify-between items-center border-t border-gray-50 gap-8">
+      {/* Footer */}
+      <footer className="py-16 px-6 bg-gray-900 text-center">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8">
             <div className="flex items-center gap-3">
-              <ShieldCheck className="text-blue-600" />
-              <span className="font-black text-lg tracking-tighter">SafeDrive.</span>
+              <ShieldCheck className="text-blue-400" size={24} />
+              <span className="font-black text-xl tracking-tight text-white">SafeDrive</span>
             </div>
-            <div className="flex gap-10 text-sm font-bold text-gray-400">
-              <Link href="#" className="hover:text-blue-600 transition">Privacy</Link>
-              <Link href="#" className="hover:text-blue-600 transition">Terms</Link>
-              <Link href="#" className="hover:text-blue-600 transition">Agreement</Link>
-              <Link href="#" className="hover:text-blue-600 transition">Support</Link>
+            <div className="flex gap-8 text-sm font-medium text-gray-400">
+              <Link href="#" className="hover:text-white transition">Privacy</Link>
+              <Link href="#" className="hover:text-white transition">Terms</Link>
+              <Link href="#" className="hover:text-white transition">Support</Link>
             </div>
-            <div className="text-xs font-black uppercase text-gray-300 tracking-[0.2em]">
-              © 2026 SafeDrive Global System
+            <div className="text-sm text-gray-400">
+              © 2026 SafeDrive. All rights reserved.
             </div>
           </div>
         </div>
