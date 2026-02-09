@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+:root {
+  --background: #FFFFFF;
+  --foreground: #1F2937;
+  --primary: #3B82F6;
+  --secondary: #10B981;
+  --danger: #EF4444;
+  --accent: #F9FAFB;
+  --radius: 8px;
+}
+
+@theme {
+  --color-primary: #1e40af;
+  --color-secondary: #0ea5e9;
+  --color-danger: #ef4444;
+  --color-accent: #F9FAFB;
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+@layer base {
+  body {
+    @apply antialiased text-gray-900 bg-white selection:bg-blue-100 selection:text-blue-900;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-white/40;
+  }
+
+  .glass-heavy {
+    @apply bg-white/40 backdrop-blur-xl border border-white/20 shadow-glass;
+  }
+
+  .mesh-gradient {
+    background-color: #ffffff;
+    background-image:
+      radial-gradient(at 0% 0%, hsla(217, 100%, 95%, 1) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(199, 100%, 95%, 1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(217, 100%, 98%, 1) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, hsla(199, 100%, 98%, 1) 0px, transparent 50%);
+  }
+
+  .text-glow-blue {
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.8s ease-out forwards;
+  }
+
+  .animate-slideRight {
+    animation: slideInRight 0.6s ease-out forwards;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+}
+
+/* Hover effects */
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+}
+
+.hover-grow:hover {
+  transform: scale(1.05);
+}
