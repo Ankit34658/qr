@@ -17,6 +17,21 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    BarChart,
+    Bar,
+    Legend
+} from 'recharts';
 
 export default function DashboardPage() {
     const [stats, setStats] = useState([
@@ -27,9 +42,9 @@ export default function DashboardPage() {
     ]);
     const [recentScans, setRecentScans] = useState<any[]>([]);
     const [chartData, setChartData] = useState<{ day: string, count: number }[]>([]);
-    const [typeData, setTypeData] = useState<{ name: string, count: number, color: string }[]>([]);
+    const [typeData, setTypeData] = useState<{ name: string, value: number, color: string }[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showMobileGuide, setShowMobileGuide] = useState(false);
+
     const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
     const [selectedAlert, setSelectedAlert] = useState<any>(null);
     const [resolving, setResolving] = useState(false);
@@ -75,7 +90,8 @@ export default function DashboardPage() {
 
                 // Fetch chart data (last 7 days)
                 const sevenDaysAgo = new Date();
-                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // Include today
+                sevenDaysAgo.setHours(0, 0, 0, 0);
 
                 const { data: chartRaw } = await supabase
                     .from('scan_logs')
@@ -86,11 +102,12 @@ export default function DashboardPage() {
                     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                     const counts: Record<string, number> = {};
 
-                    // Initialize last 7 days
-                    for (let i = 6; i >= 0; i--) {
+                    // Initialize keys for last 7 days to ensure 0s are present
+                    for (let i = 0; i < 7; i++) {
                         const d = new Date();
                         d.setDate(d.getDate() - i);
-                        counts[days[d.getDay()]] = 0;
+                        const dayName = days[d.getDay()];
+                        counts[dayName] = 0;
                     }
 
                     chartRaw.forEach(log => {
@@ -98,18 +115,45 @@ export default function DashboardPage() {
                         if (counts[dayName] !== undefined) counts[dayName]++;
                     });
 
-                    setChartData(Object.entries(counts).map(([day, count]) => ({ day, count })));
+                    // Convert to array and reverse to show oldest to newest if needed, 
+                    // or sort by date. Ideally we want chronological order.
+                    // Let's rebuild to ensure chronological order:
+                    const sortedData = [];
+                    for (let i = 6; i >= 0; i--) {
+                        const d = new Date();
+                        d.setDate(d.getDate() - i);
+                        const dayName = days[d.getDay()];
+                        sortedData.push({ day: dayName, count: counts[dayName] || 0 });
+                    }
+
+                    setChartData(sortedData);
                 }
 
                 // Fetch scan type distribution
                 const { data: typeRaw } = await supabase.from('scan_logs').select('scan_type');
                 if (typeRaw) {
-                    const normalCount = typeRaw.filter(s => s.scan_type === 'normal').length;
-                    const emergencyCount = typeRaw.filter(s => s.scan_type === 'emergency').length;
-                    setTypeData([
-                        { name: 'Normal Scans', count: normalCount, color: 'bg-blue-500' },
-                        { name: 'Emergency', count: emergencyCount, color: 'bg-red-500' }
-                    ]);
+                    // Normalize scan types for display
+                    let normalCount = 0;
+                    let emergencyCount = 0;
+                    let messageCount = 0;
+
+                    typeRaw.forEach(s => {
+                        if (s.scan_type === 'emergency') emergencyCount++;
+                        else if (['contact_request', 'message', 'call'].includes(s.scan_type) || (s as any).contact_method) messageCount++;
+                        else normalCount++;
+                    });
+
+                    // If messageCount is negligible or 0, fold it into normal or just don't show it if 0
+                    const data = [
+                        { name: 'Normal', value: normalCount, color: '#3B82F6' },
+                        { name: 'Emergency', value: emergencyCount, color: '#EF4444' },
+                    ];
+
+                    if (messageCount > 0) {
+                        data.push({ name: 'Messages', value: messageCount, color: '#10B981' });
+                    }
+
+                    setTypeData(data);
                 }
             } catch (err) {
                 console.error("Error fetching dashboard data:", err);
@@ -329,75 +373,6 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {/* Local Testing Guide Banner */}
-            <div className="bg-amber-50 border border-amber-100 rounded-[32px] p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
-                <div className="flex items-center gap-4 text-amber-700">
-                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-                        <Info className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h4 className="font-black text-lg">Localhost Testing Hub</h4>
-                        <p className="text-sm font-medium opacity-80">Testing on mobile? Use <span className="font-bold underline">PC Browser</span> or your PC's Wi-Fi IP address.</p>
-                    </div>
-                </div>
-                <div className="flex gap-3 w-full md:w-auto">
-                    <button
-                        onClick={() => setShowMobileGuide(true)}
-                        className="flex-grow md:flex-initial bg-amber-600 text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-amber-700 transition"
-                    >
-                        Setup Mobile Access
-                    </button>
-                    <Link href="/admin/qr-codes" className="flex-grow md:flex-initial bg-white text-amber-600 px-5 py-3 rounded-xl font-bold text-sm border border-amber-200 hover:bg-amber-100 transition text-center flex items-center justify-center gap-2">
-                        <ExternalLink size={16} />
-                        Quick Test Scanning
-                    </Link>
-                </div>
-            </div>
-
-            {/* Mobile Setup Modal */}
-            {showMobileGuide && (
-                <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[40px] w-full max-w-lg shadow-2xl animate-in zoom-in duration-300 overflow-hidden">
-                        <div className="p-8">
-                            <div className="flex justify-between items-start mb-6">
-                                <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center">
-                                    <Info size={32} />
-                                </div>
-                                <button onClick={() => setShowMobileGuide(false)} className="p-2 hover:bg-gray-100 rounded-xl transition">
-                                    <Clock size={24} className="rotate-45 text-gray-400" />
-                                </button>
-                            </div>
-
-                            <h3 className="text-2xl font-black text-gray-900 mb-2">Localhost Mobile Testing</h3>
-                            <p className="text-gray-500 font-medium mb-8">Scan QR codes from your phone while developing locally.</p>
-
-                            <div className="space-y-6">
-                                <div className="flex gap-4">
-                                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-black shrink-0">1</div>
-                                    <div>
-                                        <p className="font-bold text-gray-900">Find your Local IP</p>
-                                        <p className="text-xs text-gray-400 mt-1">Run <code className="bg-gray-100 px-1 rounded">ipconfig</code></p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-4">
-                                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-black shrink-0">2</div>
-                                    <div>
-                                        <p className="font-bold text-gray-900">Ensure Same Wi-Fi</p>
-                                        <p className="text-xs text-gray-400 mt-1">Your mobile phone and PC must be on the same network.</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => setShowMobileGuide(false)}
-                                className="w-full bg-gray-900 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest mt-10 hover:bg-gray-800 transition shadow-lg"
-                            >
-                                Got it!
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Welcome Banner */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-[32px] p-6 md:p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-xl relative overflow-hidden">
@@ -434,8 +409,8 @@ export default function DashboardPage() {
             {/* Charts & Activity Section */}
             <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
                 {/* Scan Activity Chart */}
-                <div className="lg:col-span-2 bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm flex flex-col">
-                    <div className="flex justify-between items-center mb-8">
+                <div className="lg:col-span-2 bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm flex flex-col h-[400px]">
+                    <div className="flex justify-between items-center mb-6">
                         <div>
                             <h3 className="text-xl font-black text-gray-900">Scan Activity</h3>
                             <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Last 7 Days</p>
@@ -443,27 +418,43 @@ export default function DashboardPage() {
                         <TrendingUp className="text-emerald-500" size={20} />
                     </div>
 
-                    <div className="flex-grow flex items-end justify-between gap-2 min-h-[250px] pb-6 px-2">
-                        {chartData.map((data, i) => {
-                            const maxCount = Math.max(...chartData.map(d => d.count), 5);
-                            const height = (data.count / maxCount) * 100;
-                            return (
-                                <div key={i} className="flex-grow flex flex-col items-center gap-3 group">
-                                    <div className="relative w-full flex justify-center items-end h-48">
-                                        <div
-                                            style={{ height: `${height}%` }}
-                                            className={`w-full max-w-[24px] rounded-full transition-all duration-1000 ${i === chartData.length - 1 ? 'bg-blue-600 shadow-lg' : 'bg-blue-100 group-hover:bg-blue-200'}`}
-                                        />
-                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10">
-                                            {data.count} scans
-                                        </div>
-                                    </div>
-                                    <span className={`text-xs font-black uppercase tracking-tight ${i === chartData.length - 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-                                        {data.day}
-                                    </span>
-                                </div>
-                            );
-                        })}
+                    <div className="flex-grow w-full h-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={chartData}>
+                                <defs>
+                                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                <XAxis
+                                    dataKey="day"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fill: '#9CA3AF', fontSize: 12, fontWeight: 700 }}
+                                    dy={10}
+                                />
+                                <YAxis
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                                    allowDecimals={false}
+                                />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                                    cursor={{ stroke: '#3B82F6', strokeWidth: 2 }}
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="count"
+                                    stroke="#3B82F6"
+                                    strokeWidth={3}
+                                    fillOpacity={1}
+                                    fill="url(#colorCount)"
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
 
@@ -472,51 +463,29 @@ export default function DashboardPage() {
                     <h3 className="text-xl font-black text-gray-900 mb-2">Scan Distribution</h3>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-8">Overall Stats</p>
 
-                    <div className="relative flex-grow flex items-center justify-center py-6">
-                        <div className="relative w-48 h-48">
-                            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                <circle cx="18" cy="18" r="16" fill="none" className="stroke-gray-50" strokeWidth="3" />
-                                {(() => {
-                                    const total = typeData.reduce((acc, d) => acc + d.count, 0) || 1;
-                                    let offset = 0;
-                                    return typeData.map((d, i) => {
-                                        const percent = (d.count / total) * 100;
-                                        const dash = `${percent} ${100 - percent}`;
-                                        const currentOffset = offset;
-                                        offset -= percent;
-                                        return (
-                                            <circle
-                                                key={i}
-                                                cx="18" cy="18" r="16" fill="none"
-                                                className={i === 0 ? "stroke-blue-600" : "stroke-red-500"}
-                                                strokeWidth="3.5"
-                                                strokeDasharray={dash}
-                                                strokeDashoffset={currentOffset}
-                                                strokeLinecap="round"
-                                            />
-                                        );
-                                    });
-                                })()}
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                                <p className="text-3xl font-black text-gray-900 leading-none">
-                                    {typeData.reduce((acc, d) => acc + d.count, 0)}
-                                </p>
-                                <p className="text-[10px] text-gray-400 font-black uppercase mt-1 tracking-widest">Total Scans</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-3 mt-6">
-                        {typeData.map((d, i) => (
-                            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-3 h-3 rounded-full ${d.color}`} />
-                                    <span className="text-xs font-bold text-gray-600">{d.name}</span>
-                                </div>
-                                <span className="text-sm font-black text-gray-900">{d.count}</span>
-                            </div>
-                        ))}
+                    <div className="relative flex-grow flex items-center justify-center h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={typeData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    stroke="none"
+                                >
+                                    {typeData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                />
+                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                            </PieChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
 
