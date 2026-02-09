@@ -118,12 +118,12 @@ export default function AdminLayout({
 
     // Get user initials for avatar
     const getUserInitials = () => {
-        if (!user?.name) return "AD";
-        const names = user.name.split(" ");
+        if (!user?.full_name) return "AD";
+        const names = user.full_name.split(" ");
         if (names.length >= 2) {
             return (names[0][0] + names[1][0]).toUpperCase();
         }
-        return user.name.substring(0, 2).toUpperCase();
+        return user.full_name.substring(0, 2).toUpperCase();
     };
 
     return (
@@ -254,7 +254,7 @@ export default function AdminLayout({
                                 {getUserInitials()}
                             </div>
                             <div className="hidden lg:block">
-                                <p className="text-sm font-black text-gray-900 leading-tight">{user?.name || "Admin User"}</p>
+                                <p className="text-sm font-black text-gray-900 leading-tight">{user?.full_name || "Admin User"}</p>
                                 <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Premium Plan</p>
                             </div>
                         </Link>
