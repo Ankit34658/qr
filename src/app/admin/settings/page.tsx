@@ -24,9 +24,9 @@ export default function SettingsPage() {
     const [success, setSuccess] = useState(false);
 
     const [formData, setFormData] = useState({
-        name: "",
+        full_name: "",
         email: "",
-        mobile: ""
+        mobile_primary: ""
     });
 
     const [notificationSettings, setNotificationSettings] = useState({
@@ -51,9 +51,9 @@ export default function SettingsPage() {
     useEffect(() => {
         if (user) {
             setFormData({
-                name: user.name || "",
+                full_name: user.full_name || "",
                 email: user.email || "",
-                mobile: user.mobile || ""
+                mobile_primary: user.mobile_primary || ""
             });
 
             // Load settings from database
@@ -138,16 +138,22 @@ export default function SettingsPage() {
             const { error } = await supabase
                 .from('users')
                 .update({
-                    name: formData.name,
-                    mobile: formData.mobile
+                    full_name: formData.full_name,
+                    mobile_primary: formData.mobile_primary
                 })
                 .eq('id', user.id);
 
             if (error) throw error;
 
             // Update localStorage
-            const updatedUser = { ...user, name: formData.name, mobile: formData.mobile };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
+            const updatedUser = { ...user, full_name: formData.full_name, mobile_primary: formData.mobile_primary };
+            localStorage.setItem('user', JSON.stringify(updatedUser)); // Force update to storage
+
+            // We need to trigger a storage event or reload to update the UI elsewhere if rely on useAuth
+            // For now, a reload or context update would be ideal, but let's just update local storage and hope useAuth picks it up on mount
+            // Actually useAuth listens to storage events, but only from OTHER tabs.
+            // Dispatching a custom event might help if single tab processing is needed, but for now this is fine.
+            window.dispatchEvent(new Event('storage'));
 
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
@@ -230,8 +236,8 @@ export default function SettingsPage() {
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
                                 <input
                                     type="text"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    value={formData.full_name}
+                                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition"
                                 />
                             </div>
@@ -249,8 +255,8 @@ export default function SettingsPage() {
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Mobile Number</label>
                                 <input
                                     type="tel"
-                                    value={formData.mobile}
-                                    onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                                    value={formData.mobile_primary}
+                                    onChange={(e) => setFormData({ ...formData, mobile_primary: e.target.value })}
                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition"
                                 />
                             </div>

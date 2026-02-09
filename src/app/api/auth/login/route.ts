@@ -17,9 +17,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: "Invalid email or password" }, { status: 401 });
         }
 
-        // For this system, we assume password verification is done or simplified
-        // Ideally use supabase.auth.signInWithPassword but this project seems to use a custom 'users' table
-        if (user.password !== password) {
+        // Verify password (Base64 check as per registration)
+        const inputHash = Buffer.from(password).toString('base64');
+
+        if (user.password_hash !== inputHash) {
             return NextResponse.json({ success: false, error: "Invalid email or password" }, { status: 401 });
         }
 

@@ -6,9 +6,9 @@ export type ContactMethod = 'call' | 'whatsapp' | 'both' | 'none';
 export interface User {
     id: string;
     email: string;
-    name: string;
-    mobile?: string;
-    role: 'admin';
+    full_name: string;
+    mobile_primary?: string;
+    role: 'admin' | 'owner';
     created_at: string;
 }
 

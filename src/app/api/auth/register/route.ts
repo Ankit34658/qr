@@ -3,21 +3,45 @@ import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
     try {
-        const { name, email, password, mobile } = await request.json();
+        const body = await request.json();
+        const { name, email, password, mobile } = body;
+
+        console.log("Register Attempt:", { name, email, mobile }); // Debug log
+
+        if (!name || !email || !password || !mobile) {
+            return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+        }
 
         // In a real app, use Supabase Auth or hash password
+        // Base64 encoding as requested by user
+        const passwordHash = Buffer.from(password).toString('base64');
+
         const { data: user, error } = await supabase
             .from('users')
             .insert([
-                { name, email, password_hash: password, mobile, role: 'admin' }
+                {
+                    full_name: name,
+                    email,
+                    password_hash: passwordHash,
+                    mobile_primary: mobile,
+                    role: 'owner'
+                }
             ])
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase Register Error:", error);
+            // Check for unique violation (Postgres code 23505)
+            if (error.code === '23505') {
+                return NextResponse.json({ success: false, error: "Email or Mobile already registered." }, { status: 409 });
+            }
+            throw error;
+        }
 
         return NextResponse.json({ success: true, user });
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+        console.error("Internal Register Error:", error);
+        return NextResponse.json({ success: false, error: error.message || "Internal Server Error" }, { status: 500 });
     }
 }
