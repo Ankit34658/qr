@@ -33,6 +33,10 @@ CREATE TABLE qr_codes (
   emergency_contact_1_name TEXT,
   emergency_contact_2 TEXT,
   emergency_contact_2_name TEXT,
+  medical_contact TEXT,
+  medical_contact_name TEXT,
+  police_contact TEXT,
+  police_contact_name TEXT,
   
   -- Privacy Settings
   call_enabled BOOLEAN DEFAULT true,
@@ -101,6 +105,16 @@ CREATE TABLE app_settings (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, setting_key)
+);
+
+-- Temporary contact tokens for identity masking
+CREATE TABLE contact_tokens (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  qr_code_id UUID REFERENCES qr_codes(id) ON DELETE CASCADE,
+  token TEXT UNIQUE NOT NULL,
+  scanner_identifier TEXT NOT NULL, -- e.g. email/mobile of scanner
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Create indexes for performance

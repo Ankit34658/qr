@@ -51,6 +51,7 @@ export default function ScanLogsPage() {
             log.qr_codes?.vehicle_number.toLowerCase().includes(lowerTerm) ||
             log.qr_codes?.owner_name?.toLowerCase().includes(lowerTerm) ||
             log.scanner_ip?.toLowerCase().includes(lowerTerm) ||
+            log.scanner_identifier?.toLowerCase().includes(lowerTerm) ||
             log.scan_type.toLowerCase().includes(lowerTerm)
         );
         setFilteredLogs(filtered);
@@ -58,13 +59,14 @@ export default function ScanLogsPage() {
 
     const handleExport = () => {
         // Simple CSV Export
-        const headers = ["Time", "Vehicle", "Owner", "Type", "IP", "Status"];
+        const headers = ["Time", "Vehicle", "Owner", "Type", "Scanner Identity", "IP", "Status"];
         const rows = filteredLogs.map(log => [
             new Date(log.created_at).toLocaleString(),
             log.qr_codes?.vehicle_number || "Unknown",
             log.qr_codes?.owner_name || "-",
             log.scan_type,
-            log.scanner_ip || "Anonymous",
+            log.scanner_identifier || "Anonymous",
+            log.scanner_ip || "Unknown IP",
             log.otp_verified ? "Verified" : "Bypassed"
         ]);
 
@@ -103,7 +105,7 @@ export default function ScanLogsPage() {
                 <div className="relative flex-grow">
                     <input
                         type="text"
-                        placeholder="Search by vehicle, owner or IP..."
+                        placeholder="Search by vehicle, owner, email or IP..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-blue-600 transition outline-none"
@@ -118,7 +120,7 @@ export default function ScanLogsPage() {
             </div>
 
             {/* Desktop Table View */}
-            <div className="hidden md:block bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
+            <div className="hidden md:block bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden min-h-[400px]">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead className="bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-widest">
@@ -126,7 +128,7 @@ export default function ScanLogsPage() {
                                 <th className="px-8 py-6">Event Time</th>
                                 <th className="px-8 py-6">Vehicle</th>
                                 <th className="px-8 py-6">Interaction</th>
-                                <th className="px-8 py-6">Device/IP</th>
+                                <th className="px-8 py-6">Scanner</th>
                                 <th className="px-8 py-6">Status</th>
                             </tr>
                         </thead>
@@ -160,13 +162,26 @@ export default function ScanLogsPage() {
                                     </td>
                                     <td className="px-8 py-6 uppercase tracking-widest text-[10px] font-black">
                                         <span className={`px-2 py-1 rounded-md ${log.scan_type === 'emergency' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
-                                            {log.scan_type}
+                                            {log.scan_type === 'emergency' ? 'Emergency Alert' :
+                                                log.contact_method === 'message' ? 'Secure Message' :
+                                                    log.contact_method === 'call' ? 'Call Request' :
+                                                        'QR Scan'}
                                         </span>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <div className="flex items-center gap-2 text-gray-600 text-sm">
-                                            <Smartphone size={14} className="text-gray-400" />
-                                            <span className="font-medium">{log.scanner_ip || 'Anonymous'}</span>
+                                        <div className="flex flex-col gap-1">
+                                            {log.scanner_identifier ? (
+                                                <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg w-fit">
+                                                    <Smartphone size={14} />
+                                                    <span className="font-bold text-xs">{log.scanner_identifier}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-400 text-xs font-bold italic">Anonymous</span>
+                                            )}
+                                            <div className="flex items-center gap-2 text-gray-400 text-[10px] font-medium">
+                                                <MapPin size={10} />
+                                                <span>{log.scanner_ip || 'Unknown IP'}</span>
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-8 py-6">
@@ -221,9 +236,9 @@ export default function ScanLogsPage() {
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-1.5 text-gray-300">
                                         <Smartphone size={10} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Device</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Identity</span>
                                     </div>
-                                    <p className="text-xs font-bold text-gray-700 truncate">{log.scanner_ip || 'Anonymous'}</p>
+                                    <p className="text-xs font-bold text-gray-700 truncate">{log.scanner_identifier || log.scanner_ip || 'Anonymous'}</p>
                                 </div>
                             </div>
                         </div>

@@ -38,6 +38,10 @@ export default function EditQRCodePage({ params: paramsPromise }: { params: Prom
         emergency_contact_1_name: "",
         emergency_contact_2: "",
         emergency_contact_2_name: "",
+        medical_contact: "",
+        medical_contact_name: "",
+        police_contact: "",
+        police_contact_name: "",
         call_enabled: true,
         whatsapp_enabled: true,
         emergency_enabled: true,
@@ -69,6 +73,10 @@ export default function EditQRCodePage({ params: paramsPromise }: { params: Prom
                     emergency_contact_1_name: data.emergency_contact_1_name || "",
                     emergency_contact_2: data.emergency_contact_2 || "",
                     emergency_contact_2_name: data.emergency_contact_2_name || "",
+                    medical_contact: data.medical_contact || "",
+                    medical_contact_name: data.medical_contact_name || "",
+                    police_contact: data.police_contact || "",
+                    police_contact_name: data.police_contact_name || "",
                     call_enabled: data.call_enabled ?? true,
                     whatsapp_enabled: data.whatsapp_enabled ?? true,
                     emergency_enabled: data.emergency_enabled ?? true,
@@ -313,6 +321,47 @@ export default function EditQRCodePage({ params: paramsPromise }: { params: Prom
                                 type="tel"
                                 value={formData.emergency_contact_2}
                                 onChange={(e) => setFormData({ ...formData, emergency_contact_2: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Medical Contact Name</label>
+                            <input
+                                type="text"
+                                value={formData.medical_contact_name}
+                                onChange={(e) => setFormData({ ...formData, medical_contact_name: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition"
+                                placeholder="Family Doctor / Clinic"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Medical Number</label>
+                            <input
+                                type="tel"
+                                value={formData.medical_contact}
+                                onChange={(e) => setFormData({ ...formData, medical_contact: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Nearest Police Station</label>
+                            <input
+                                type="text"
+                                value={formData.police_contact_name}
+                                onChange={(e) => setFormData({ ...formData, police_contact_name: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition"
+                                placeholder="Station Name"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Police Number</label>
+                            <input
+                                type="tel"
+                                value={formData.police_contact}
+                                onChange={(e) => setFormData({ ...formData, police_contact: e.target.value })}
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition"
                             />
                         </div>

@@ -12,7 +12,8 @@ import {
     ShieldCheck,
     MessageSquare as MessageSquareIcon,
     Info,
-    ExternalLink
+    ExternalLink,
+    MapPin
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -29,6 +30,9 @@ export default function DashboardPage() {
     const [typeData, setTypeData] = useState<{ name: string, count: number, color: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [showMobileGuide, setShowMobileGuide] = useState(false);
+    const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
+    const [selectedAlert, setSelectedAlert] = useState<any>(null);
+    const [resolving, setResolving] = useState(false);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -59,11 +63,11 @@ export default function DashboardPage() {
                 const { data: scans } = await supabase
                     .from('scan_logs')
                     .select(`
-            id,
-            scan_type,
-            created_at,
-            qr_codes (vehicle_number)
-          `)
+                        id,
+                        scan_type,
+                        created_at,
+                        qr_codes (vehicle_number)
+                    `)
                     .order('created_at', { ascending: false })
                     .limit(5);
 
@@ -114,11 +118,217 @@ export default function DashboardPage() {
             }
         };
 
+        const fetchActiveAlerts = async () => {
+            try {
+                const { data: alerts } = await supabase
+                    .from('emergency_alerts')
+                    .select('*, qr_codes(vehicle_number, vehicle_make, vehicle_model, owner_name, owner_mobile, emergency_contact_1, emergency_contact_1_name)')
+                    .eq('resolved', false)
+                    .order('created_at', { ascending: false });
+
+                if (alerts) setActiveAlerts(alerts);
+            } catch (error) {
+                console.error("Error fetching alerts:", error);
+            }
+        };
+
+        // Initial fetch
         fetchDashboardData();
+        fetchActiveAlerts();
+
+        // Poll for alerts every 5 seconds
+        const interval = setInterval(fetchActiveAlerts, 5000);
+        return () => clearInterval(interval);
+
     }, []);
 
+    const handleResolveAlert = async () => {
+        if (!selectedAlert) return;
+        setResolving(true);
+        try {
+            const { error } = await supabase
+                .from('emergency_alerts')
+                .update({
+                    resolved: true,
+                    resolved_at: new Date().toISOString()
+                })
+                .eq('id', selectedAlert.id);
+
+            if (error) throw error;
+
+            // Remove from local state
+            setActiveAlerts(prev => prev.filter(a => a.id !== selectedAlert.id));
+            setSelectedAlert(null);
+
+            // Refund/Update Stats locally for immediate feedback
+            setStats(prev => prev.map(s => s.label === "Emergency Alerts" ? { ...s, value: (parseInt(s.value) - 1).toString() } : s));
+
+        } catch (err) {
+            console.error("Failed to resolve alert:", err);
+            alert("Failed to resolve alert. Please try again.");
+        } finally {
+            setResolving(false);
+        }
+    };
+
     return (
-        <div className="space-y-6 md:space-y-8 animate-fadeIn">
+        <div className="space-y-6 md:space-y-8 animate-fadeIn pb-10">
+            {/* RED ALERT BANNER */}
+            {activeAlerts.length > 0 && (
+                <div className="bg-red-600 rounded-[32px] p-6 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl shadow-red-200 animate-pulse border-4 border-red-400">
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-white text-red-600 rounded-2xl flex items-center justify-center shadow-lg">
+                            <AlertTriangle className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <h4 className="font-black text-xl uppercase tracking-tight">System Critical: Red Alert</h4>
+                            <p className="text-sm font-bold opacity-90">
+                                {activeAlerts.length} active emergency {activeAlerts.length === 1 ? 'alert' : 'alerts'} detected.
+                                <span className="ml-2 font-black underline">Vehicle: {activeAlerts[0]?.qr_codes?.vehicle_number}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setSelectedAlert(activeAlerts[0])}
+                        className="bg-white text-red-600 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-100 transition shadow-xl shrink-0"
+                    >
+                        Respond Now
+                    </button>
+                </div>
+            )}
+
+            {/* Emergency Resolution Modal */}
+            {selectedAlert && (
+                <div className="fixed inset-0 z-[300] flex items-start justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto pt-10 md:pt-20">
+                    <div className="bg-white rounded-[40px] w-full max-w-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col relative mb-20">
+                        <div className="bg-red-600 text-white p-6 md:p-8 flex justify-between items-center z-20 relative">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                                    <AlertTriangle size={32} className="animate-pulse" />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black uppercase tracking-tight">Emergency Command Center</h2>
+                                    <p className="opacity-90 font-bold text-sm">Incident ID: {selectedAlert.id.slice(0, 8)}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedAlert(null)}
+                                className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                            </button>
+                        </div>
+
+                        <div className="p-8 grid md:grid-cols-2 gap-8">
+                            {/* Map & Location */}
+                            <div className="space-y-6">
+                                <div className="bg-gray-100 rounded-[32px] aspect-video w-full overflow-hidden border border-gray-200 relative group">
+                                    {selectedAlert.location_lat ? (
+                                        <iframe
+                                            width="100%"
+                                            height="100%"
+                                            frameBorder="0"
+                                            style={{ border: 0 }}
+                                            src={`https://maps.google.com/maps?q=${selectedAlert.location_lat},${selectedAlert.location_lng}&z=15&output=embed`}
+                                            allowFullScreen
+                                        ></iframe>
+                                    ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center text-gray-400 font-bold">
+                                            <MapPin size={48} className="mb-2" />
+                                            <p>No GPS Data Available</p>
+                                        </div>
+                                    )}
+                                    <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl text-xs font-black shadow-lg">
+                                        📍 Incident Location
+                                    </div>
+                                </div>
+
+                                <div className="bg-red-50 p-6 rounded-[32px] border border-red-100">
+                                    <h3 className="text-red-800 font-black uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
+                                        <ShieldCheck size={16} /> Dispatch Log
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {selectedAlert.alert_sent_to && selectedAlert.alert_sent_to.map((contact: string, i: number) => (
+                                            <div key={i} className="flex items-center gap-3 text-sm font-bold text-red-900/70 p-2 bg-white rounded-xl border border-red-100/50">
+                                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                                Sent to: <span className="text-red-900">{contact}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Vehicle & Contact Info */}
+                            <div className="space-y-8">
+                                <div>
+                                    <h3 className="text-gray-400 font-black uppercase tracking-widest text-xs mb-4">Vehicle Details</h3>
+                                    <div className="bg-gray-50 p-6 rounded-[32px] border border-gray-100 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-3xl font-black text-gray-900">{selectedAlert.qr_codes?.vehicle_number}</p>
+                                            <p className="text-gray-500 font-bold">{selectedAlert.qr_codes?.vehicle_make} {selectedAlert.qr_codes?.vehicle_model}</p>
+                                        </div>
+                                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm text-gray-400">
+                                            <Car size={32} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-gray-400 font-black uppercase tracking-widest text-xs mb-4">Emergency Contacts</h3>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
+                                                    <Users size={20} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-black uppercase text-blue-600">Owner</p>
+                                                    <p className="font-bold text-gray-900">{selectedAlert.qr_codes?.owner_name}</p>
+                                                </div>
+                                            </div>
+                                            <a href={`tel:${selectedAlert.qr_codes?.owner_mobile}`} className="relative z-10 bg-white p-3 px-5 rounded-xl text-blue-600 shadow-sm font-black text-xs hover:bg-blue-600 hover:text-white transition uppercase tracking-widest border border-blue-100">
+                                                CALL OWNER
+                                            </a>
+                                        </div>
+
+                                        {selectedAlert.qr_codes?.emergency_contact_1 && (
+                                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-white text-gray-400 rounded-xl flex items-center justify-center shadow-sm">
+                                                        <Users size={20} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-black uppercase text-gray-400">{selectedAlert.qr_codes?.emergency_contact_1_name || 'Contact 1'}</p>
+                                                        <p className="font-bold text-gray-900">{selectedAlert.qr_codes?.emergency_contact_1}</p>
+                                                    </div>
+                                                </div>
+                                                <a href={`tel:${selectedAlert.qr_codes?.emergency_contact_1}`} className="relative z-10 bg-white p-3 px-5 rounded-xl text-gray-600 shadow-sm font-black text-xs hover:bg-gray-900 hover:text-white transition uppercase tracking-widest border border-gray-100">
+                                                    CALL
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="pt-6 border-t border-gray-100">
+                                    <button
+                                        onClick={handleResolveAlert}
+                                        disabled={resolving}
+                                        className="w-full bg-emerald-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition flex items-center justify-center gap-3"
+                                    >
+                                        {resolving ? <Clock className="animate-spin" /> : <ShieldCheck size={20} />}
+                                        {resolving ? 'Resolving...' : 'Mark Alert as Resolved'}
+                                    </button>
+                                    <p className="text-center text-xs text-gray-400 font-bold mt-4">
+                                        This will archive the alert and remove the dashboard banner.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Local Testing Guide Banner */}
             <div className="bg-amber-50 border border-amber-100 rounded-[32px] p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
                 <div className="flex items-center gap-4 text-amber-700">
@@ -166,21 +376,14 @@ export default function DashboardPage() {
                                     <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-black shrink-0">1</div>
                                     <div>
                                         <p className="font-bold text-gray-900">Find your Local IP</p>
-                                        <p className="text-xs text-gray-400 mt-1">Run <code className="bg-gray-100 px-1 rounded">ipconfig</code> on Windows or <code className="bg-gray-100 px-1 rounded">ifconfig</code> on Mac inside your terminal.</p>
+                                        <p className="text-xs text-gray-400 mt-1">Run <code className="bg-gray-100 px-1 rounded">ipconfig</code></p>
                                     </div>
                                 </div>
                                 <div className="flex gap-4">
                                     <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-black shrink-0">2</div>
                                     <div>
                                         <p className="font-bold text-gray-900">Ensure Same Wi-Fi</p>
-                                        <p className="text-xs text-gray-400 mt-1">Your mobile phone and PC must be connected to the exact same Wi-Fi network.</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-4">
-                                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-black shrink-0">3</div>
-                                    <div>
-                                        <p className="font-bold text-gray-900">Access via IP</p>
-                                        <p className="text-xs text-gray-400 mt-1">Open <code className="bg-gray-100 px-1 rounded font-bold text-blue-600">http://[YOUR-IP]:3000</code> in your mobile browser.</p>
+                                        <p className="text-xs text-gray-400 mt-1">Your mobile phone and PC must be on the same network.</p>
                                     </div>
                                 </div>
                             </div>
@@ -189,7 +392,7 @@ export default function DashboardPage() {
                                 onClick={() => setShowMobileGuide(false)}
                                 className="w-full bg-gray-900 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest mt-10 hover:bg-gray-800 transition shadow-lg"
                             >
-                                Got it, let's test!
+                                Got it!
                             </button>
                         </div>
                     </div>
@@ -197,7 +400,7 @@ export default function DashboardPage() {
             )}
 
             {/* Welcome Banner */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-[32px] p-6 md:p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-xl shadow-blue-100 relative overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-[32px] p-6 md:p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-xl relative overflow-hidden">
                 <div className="relative z-10">
                     <h1 className="text-2xl md:text-4xl font-black mb-2 tracking-tight">Morning, Admin! 👋</h1>
                     <p className="opacity-80 max-w-sm text-sm md:text-base font-medium">
@@ -215,7 +418,7 @@ export default function DashboardPage() {
                 {stats.map((stat, i) => (
                     <div key={i} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover-lift">
                         <div className="flex justify-between items-start mb-4">
-                            <div className={`${stat.color} p-3 rounded-2xl text-white shadow-lg shadow-blue-100`}>
+                            <div className={`${stat.color} p-3 rounded-2xl text-white shadow-lg`}>
                                 {stat.icon}
                             </div>
                             <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-wider ${stat.trend.startsWith('+') ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
@@ -249,7 +452,7 @@ export default function DashboardPage() {
                                     <div className="relative w-full flex justify-center items-end h-48">
                                         <div
                                             style={{ height: `${height}%` }}
-                                            className={`w-full max-w-[24px] rounded-full transition-all duration-1000 ${i === chartData.length - 1 ? 'bg-blue-600 shadow-lg shadow-blue-100' : 'bg-blue-100 group-hover:bg-blue-200'}`}
+                                            className={`w-full max-w-[24px] rounded-full transition-all duration-1000 ${i === chartData.length - 1 ? 'bg-blue-600 shadow-lg' : 'bg-blue-100 group-hover:bg-blue-200'}`}
                                         />
                                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10">
                                             {data.count} scans
@@ -317,7 +520,7 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* Activity Feed - Wide Version */}
+                {/* Activity Feed */}
                 <div className="lg:col-span-3 bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
                     <div className="p-8 flex justify-between items-center bg-white border-b border-gray-50">
                         <div>
@@ -328,120 +531,34 @@ export default function DashboardPage() {
                             View Full Logs <ArrowRight size={16} />
                         </Link>
                     </div>
-                    <div className="overflow-x-auto lg:overflow-x-visible">
+                    <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead className="bg-gray-50/50 text-gray-400 text-[10px] font-black uppercase tracking-widest">
                                 <tr>
                                     <th className="px-8 py-5">Vehicle Plate</th>
                                     <th className="px-8 py-5">Scan Type</th>
-                                    <th className="px-8 py-5">Detection Time</th>
                                     <th className="px-8 py-5 text-right">Status</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {loading ? (
-                                    <tr>
-                                        <td colSpan={4} className="px-8 py-16 text-center text-gray-400 font-bold uppercase tracking-widest animate-pulse">
-                                            Syncing recent activity...
-                                        </td>
-                                    </tr>
+                                    <tr><td colSpan={3} className="px-8 py-10 text-center animate-pulse">Loading...</td></tr>
                                 ) : recentScans.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={4} className="px-8 py-16 text-center text-gray-400 font-bold italic">
-                                            No recent scans recorded.
-                                        </td>
-                                    </tr>
+                                    <tr><td colSpan={3} className="px-8 py-10 text-center italic">No scans recorded</td></tr>
                                 ) : recentScans.map((row, i) => (
-                                    <tr key={i} className="hover:bg-gray-50/30 transition group">
+                                    <tr key={i} className="hover:bg-gray-50/30 transition">
+                                        <td className="px-8 py-6 font-black text-gray-900">{(row.qr_codes as any)?.vehicle_number || 'Unknown'}</td>
                                         <td className="px-8 py-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black text-xs">
-                                                    {(row.qr_codes as any)?.vehicle_number?.slice(-2) || '??'}
-                                                </div>
-                                                <span className="font-black text-gray-900">{(row.qr_codes as any)?.vehicle_number || 'Unknown'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg tracking-wider ${row.scan_type === 'emergency' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                                            <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg ${row.scan_type === 'emergency' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
                                                 {row.scan_type}
                                             </span>
                                         </td>
-                                        <td className="px-8 py-6 font-medium text-gray-500">
-                                            {new Date(row.created_at).toLocaleDateString()} at {new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <div className="inline-flex items-center gap-1.5 text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase">
-                                                <div className="w-1 h-1 bg-emerald-600 rounded-full animate-pulse" />
-                                                Logged
-                                            </div>
-                                        </td>
+                                        <td className="px-8 py-6 text-right font-black text-emerald-600 text-[10px] uppercase">Logged</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
-
-            {/* Bottom Section */}
-            <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
-                <div className="lg:col-span-1 bg-blue-600 rounded-[32px] p-8 text-white text-center relative overflow-hidden shadow-xl shadow-blue-100/50 hover-lift">
-                    <QrCode className="w-24 h-24 opacity-10 absolute -bottom-4 -right-4 rotate-12" />
-                    <h3 className="font-black text-xl mb-3 relative z-10">Deploy New Tag</h3>
-                    <p className="text-sm opacity-80 mb-8 relative z-10 font-medium">Protect a new vehicle in under 60 seconds.</p>
-                    <Link href="/admin/qr-codes/create" className="block w-full bg-white text-blue-600 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-50 transition shadow-lg relative z-10">
-                        Create Now
-                    </Link>
-                </div>
-
-                <div className="lg:col-span-1 bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm flex flex-col">
-                    <h3 className="font-black text-gray-900 mb-6 px-2 tracking-tight">Security Center</h3>
-                    <div className="space-y-2 flex-grow">
-                        <Link href="/admin/settings" className="flex gap-4 p-4 hover:bg-gray-50 rounded-2xl transition group border border-transparent hover:border-gray-50">
-                            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform">
-                                <ShieldCheck size={20} />
-                            </div>
-                            <div>
-                                <h4 className="font-black text-gray-900 text-sm">Two-Factor Auth</h4>
-                                <p className="text-xs text-gray-400 font-medium">Enhance portal security</p>
-                            </div>
-                        </Link>
-                        <Link href="mailto:support@safedrive.com" className="flex gap-4 p-4 hover:bg-gray-50 rounded-2xl transition group border border-transparent hover:border-gray-50">
-                            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform">
-                                <MessageSquareIcon size={20} />
-                            </div>
-                            <div>
-                                <h4 className="font-black text-gray-900 text-sm">System Support</h4>
-                                <p className="text-xs text-gray-400 font-medium">24/7 Expert assistance</p>
-                            </div>
-                        </Link>
-                    </div>
-                </div>
-
-                {/* System Status Mock */}
-                <div className="lg:col-span-1 bg-gray-900 rounded-[32px] p-8 text-white relative overflow-hidden">
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Live Status</span>
-                        </div>
-                        <h3 className="font-black text-xl mb-6">Global Infrastructure</h3>
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl">
-                                <span className="text-xs font-bold opacity-60">API Latency</span>
-                                <span className="text-xs font-black">24ms</span>
-                            </div>
-                            <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl">
-                                <span className="text-xs font-bold opacity-60">Database Load</span>
-                                <span className="text-xs font-black">12%</span>
-                            </div>
-                            <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl">
-                                <span className="text-xs font-bold opacity-60">Uptime</span>
-                                <span className="text-xs font-black">99.99%</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/10 blur-3xl rounded-full" />
                 </div>
             </div>
         </div>

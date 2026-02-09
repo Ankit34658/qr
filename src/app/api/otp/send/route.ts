@@ -19,6 +19,11 @@ export async function POST(request: Request) {
                 }
             ]);
 
+        // DEV: Log OTP for local testing if email fails
+        console.log("============================================");
+        console.log("🔐 DEV DEBUG - OTP CODE:", otp);
+        console.log("============================================");
+
         if (dbError) throw dbError;
 
         // Send Email

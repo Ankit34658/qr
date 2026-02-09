@@ -28,6 +28,10 @@ export interface QRCode {
     emergency_contact_1_name?: string;
     emergency_contact_2?: string;
     emergency_contact_2_name?: string;
+    medical_contact?: string;
+    medical_contact_name?: string;
+    police_contact?: string;
+    police_contact_name?: string;
     call_enabled: boolean;
     whatsapp_enabled: boolean;
     emergency_enabled: boolean;

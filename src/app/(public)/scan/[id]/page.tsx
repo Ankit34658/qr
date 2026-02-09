@@ -11,7 +11,10 @@ import {
     ChevronRight,
     Info,
     Loader2,
-    AlertCircle
+    AlertCircle,
+    Send,
+    CheckCircle2,
+    XCircle
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -27,6 +30,33 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
     const [email, setEmail] = useState("");
     const [otp, setOtp] = useState("");
     const [otpLoading, setOtpLoading] = useState(false);
+    const [token, setToken] = useState<string | null>(null);
+    const [relayMessage, setRelayMessage] = useState("");
+    const [relayLoading, setRelayLoading] = useState(false);
+
+    // Modal System State
+    const [modalConfig, setModalConfig] = useState<{
+        isOpen: boolean;
+        type: 'alert' | 'confirm';
+        title: string;
+        message: string;
+        onConfirm?: () => void;
+        onCancel?: () => void;
+        priority?: 'high' | 'normal' | 'success';
+    }>({
+        isOpen: false,
+        type: 'alert',
+        title: '',
+        message: ''
+    });
+
+    const showModal = (config: Omit<typeof modalConfig, 'isOpen'>) => {
+        setModalConfig({ ...config, isOpen: true });
+    };
+
+    const closeModal = () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+    };
 
     useEffect(() => {
         const fetchQRData = async () => {
@@ -68,7 +98,7 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     email,
-                    qr_code_id: qrCode?.id
+                    qr_id: qrCode?.id
                 })
             });
             const data = await response.json();
@@ -78,44 +108,195 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                 throw new Error(data.error);
             }
         } catch (err: any) {
-            alert(err.message);
+            showModal({
+                type: 'alert',
+                title: 'Request Failed',
+                message: err.message,
+                priority: 'normal'
+            });
         } finally {
             setOtpLoading(false);
         }
     };
 
-    const handleVerifyOTP = () => {
-        // In a real app, this would call /api/otp/verify
-        // For now we simulate success but the structure is there
-        if (otp.length === 6) {
-            setVerified(true);
-            setOtpSent(false);
-        } else {
-            alert("Please enter a valid 6-digit code");
+    const handleVerifyOTP = async () => {
+        if (otp.length !== 6) {
+            showModal({
+                type: 'alert',
+                title: 'Invalid Code',
+                message: "Please enter a valid 6-digit code sent to your email.",
+                priority: 'normal'
+            });
+            return;
+        }
+
+        setOtpLoading(true);
+        try {
+            const response = await fetch('/api/otp/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email,
+                    otp_code: otp,
+                    qr_id: qrCode?.id
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setToken(data.token);
+                setVerified(true);
+                setOtpSent(false);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (err: any) {
+            showModal({
+                type: 'alert',
+                title: 'Verification Error',
+                message: err.message,
+                priority: 'normal'
+            });
+        } finally {
+            setOtpLoading(false);
         }
     };
 
-    const handleEmergency = async () => {
-        const confirm = window.confirm("CRITICAL ALERT: This will notify the owner and their emergency contacts immediately. Only proceed for genuine life-safety emergencies. Continue?");
-        if (!confirm) return;
+    const handleRelay = async (method: 'call' | 'message') => {
+        if (!token) {
+            showModal({
+                type: 'alert',
+                title: 'Session Expired',
+                message: "Your secure session has expired. Please verify again.",
+                priority: 'normal',
+                onConfirm: () => {
+                    setVerified(false);
+                    setOtpSent(false);
+                }
+            });
+            return;
+        }
 
+        if (method === 'message' && !relayMessage.trim()) {
+            showModal({
+                type: 'alert',
+                title: 'Message Required',
+                message: "Please enter a message for the owner.",
+                priority: 'normal'
+            });
+            return;
+        }
+
+        setRelayLoading(true);
+        try {
+            const response = await fetch('/api/contact/relay', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token,
+                    method,
+                    message: relayMessage
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                showModal({
+                    type: 'alert',
+                    title: 'Relay Successful',
+                    message: "Your request has been relayed to the owner securely. They will contact you via email shortly.",
+                    priority: 'success'
+                });
+                setRelayMessage("");
+            } else {
+                throw new Error(data.error || 'Relay failed');
+            }
+        } catch (err: any) {
+            showModal({
+                type: 'alert',
+                title: 'Relay Error',
+                message: err.message,
+                priority: 'normal'
+            });
+        } finally {
+            setRelayLoading(false);
+        }
+    };
+
+    const triggerEmergencyBroadcast = async () => {
+        let location = null;
         try {
             // Try to get location
-            let location = null;
+            if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+                console.warn("GPS Warning: HTTP connection blocks Geolocation.");
+                showModal({
+                    type: 'confirm',
+                    title: 'Location Unavailable',
+                    message: "GPS requires a secure connection (HTTPS). Sending alert without location data. Continue?",
+                    priority: 'normal',
+                    onConfirm: async () => {
+                        await sendEmergencyAlert(null);
+                    }
+                });
+                return;
+            }
+
             if ("geolocation" in navigator) {
                 try {
-                    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                    console.log("Attempting to fetch GPS location...");
+
+                    // Create a promise that rejects on timeout
+                    const getPosition = new Promise<GeolocationPosition>((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        });
                     });
+
+                    const position = await getPosition;
                     location = {
                         lat: position.coords.latitude,
                         lng: position.coords.longitude
                     };
-                } catch (e) {
-                    console.warn("Location access denied or timed out");
+                    console.log("GPS Location acquired:", location);
+
+                } catch (e: any) {
+                    console.warn("Location access denied or timed out:", e);
+
+                    let errorMsg = "Could not fetch location.";
+                    if (e.code === 1) errorMsg = "Location permission denied.";
+                    if (e.code === 2) errorMsg = "Location unavailable/Signal lost.";
+                    if (e.code === 3) errorMsg = "Location request timed out.";
+
+                    // Optional: Ask user to retry or proceed
+                    showModal({
+                        type: 'confirm',
+                        title: 'GPS Failed',
+                        message: `${errorMsg} Send alert without map location?`,
+                        priority: 'high',
+                        onConfirm: async () => {
+                            await sendEmergencyAlert(null);
+                        }
+                    });
+                    return; // Stop here, wait for user confirmation to proceed without GPS
                 }
             }
 
+            await sendEmergencyAlert(location);
+
+        } catch (err: any) {
+            showModal({
+                type: 'alert',
+                title: 'Broadcast Error',
+                message: "System delay. Please call emergency services (100/108).",
+                priority: 'high'
+            });
+        }
+    };
+
+    const sendEmergencyAlert = async (location: any) => {
+        try {
             const response = await fetch('/api/notify/emergency', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -128,13 +309,33 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
             const data = await response.json();
 
             if (data.success) {
-                alert("SUCCESS: The vehicle owner and their designated emergency contacts have been notified with high priority. Stay calm and stay with the vehicle if safe.");
+                showModal({
+                    type: 'alert',
+                    title: 'Alert Broadcasted',
+                    message: "The vehicle owner and emergency contacts have been notified. Location: " + (location ? "Attached" : "Not available") + ".",
+                    priority: 'success'
+                });
             } else {
                 throw new Error(data.error);
             }
-        } catch (err) {
-            alert("NOTIFICATION ERROR: System delay. Please call emergency services (100/108) or try calling the owner directly if verification is complete.");
+        } catch (err: any) {
+            showModal({
+                type: 'alert',
+                title: 'Broadcast Error',
+                message: err.message || "Failed to send alert.",
+                priority: 'high'
+            });
         }
+    };
+
+    const handleEmergency = () => {
+        showModal({
+            type: 'confirm',
+            title: 'Confirm Emergency?',
+            message: "CRITICAL ALERT: This will notify the owner and their emergency contacts immediately. Only proceed for genuine life-safety emergencies.",
+            priority: 'high',
+            onConfirm: triggerEmergencyBroadcast
+        });
     };
 
     if (loading) return (
@@ -167,14 +368,6 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
         return `${name[0]}${'*'.repeat(Math.max(0, name.length - 2))}${name[name.length - 1]}@${domain}`;
     };
 
-    const maskName = (name: string) => {
-        if (!name) return "";
-        return name.split(' ').filter(Boolean).map(n => {
-            if (n.length <= 1) return n;
-            return n[0] + '*'.repeat(n.length - 1);
-        }).join(' ');
-    };
-
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-600/10">
             {/* Soft Ambient Background Decor */}
@@ -194,16 +387,11 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                             SafeDrive <span className="text-blue-600">Contact</span>
                         </span>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <button className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 transition">
-                            <Info size={16} />
-                        </button>
-                    </div>
                 </div>
             </header>
 
             <main className="max-w-md mx-auto px-6 py-8 relative z-10 space-y-8">
-                {/* Vehicle Hero Card - Light Mode */}
+                {/* Vehicle Hero Card */}
                 <div className="relative group">
                     <div className="absolute -inset-0.5 bg-gradient-to-tr from-blue-100 to-indigo-100 rounded-[40px] opacity-50 blur-xl group-hover:opacity-70 transition duration-1000"></div>
                     <div className="relative bg-white rounded-[40px] border border-white shadow-[0_32px_64px_-16px_rgba(0,0,0,0.06)] p-8 overflow-hidden">
@@ -239,180 +427,256 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                                     )}
                                 </div>
                             </div>
-
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-lg font-black text-white shadow-lg shadow-blue-200">
-                                    {qrCode.owner_name[0]}
-                                </div>
-                                <div className="flex flex-col">
-                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Authorised Owner</p>
-                                    <p className="font-extrabold text-lg text-slate-800 leading-tight">
-                                        {qrCode.show_owner_name || verified ? qrCode.owner_name : maskName(qrCode.owner_name)}
-                                    </p>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Intelligent Guidelines */}
                 <div className="bg-amber-50 border border-amber-200/50 rounded-[32px] p-6 shadow-sm">
-                    <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-3 mb-2">
                         <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 ring-1 ring-amber-200/50">
                             <Info size={16} />
                         </div>
-                        <h3 className="font-black text-amber-700 uppercase text-xs tracking-widest">Protocol Notice</h3>
+                        <h3 className="font-black text-amber-700 uppercase text-xs tracking-widest">Privacy Protocol</h3>
                     </div>
-                    <ul className="space-y-4">
-                        <li className="flex gap-4 group">
-                            <div className="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 ring-4 ring-amber-100 shrink-0" />
-                            <p className="text-xs text-amber-900/70 font-bold leading-relaxed">
-                                Deploy <span className="text-amber-700">Emergency Alert</span> only for life-threatning or critical medical situations.
-                            </p>
-                        </li>
-                        <li className="flex gap-4">
-                            <div className="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 ring-4 ring-amber-100 shrink-0" />
-                            <p className="text-xs text-amber-900/70 font-bold leading-relaxed">
-                                System logging inactive sessions for audit and safety traceability.
-                            </p>
-                        </li>
-                    </ul>
+                    <p className="text-[10px] text-amber-900/60 font-bold leading-relaxed px-1">
+                        We use an anonymous relay system. Your contact details and the owner's phone numbers are never shared directly.
+                    </p>
                 </div>
 
                 {/* Interaction Modules */}
                 <div className="space-y-6">
                     {/* Emergency Response System */}
                     {qrCode.emergency_enabled && (
-                        <div className="bg-red-600 rounded-[32px] p-8 shadow-2xl shadow-red-200 relative overflow-hidden group active:scale-95 transition-transform duration-200 border-t border-white/20">
+                        <div className="bg-red-600 rounded-[32px] p-8 shadow-2xl shadow-red-200 relative overflow-hidden group transition-all border-t border-white/20">
                             <div className="relative z-10">
                                 <div className="flex items-center gap-2 mb-4 bg-white/20 w-fit px-3 py-1.5 rounded-full border border-white/20 backdrop-blur-md">
                                     <AlertTriangle size={14} className="text-white animate-pulse" />
                                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white">Priority Level: High</span>
                                 </div>
-                                <h3 className="text-2xl font-black mb-1 text-white">Emergency Situation?</h3>
-                                <p className="text-red-50 text-sm mb-6 font-semibold opacity-80">Trigger immediate broadcast to owner and family units.</p>
+                                <h3 className="text-2xl font-black mb-1 text-white">Emergency?</h3>
+                                <p className="text-red-50 text-sm mb-6 font-semibold opacity-80">Immediate broadcast to owner, family, and medical units.</p>
+
+                                {qrCode.medical_contact && (
+                                    <div className="mb-4 bg-white/10 p-3 rounded-xl border border-white/10 backdrop-blur-sm">
+                                        <p className="text-[10px] text-white/60 font-black uppercase tracking-widest mb-1">Medical Contact Active</p>
+                                        <p className="text-white font-bold text-xs">{qrCode.medical_contact_name || 'Family Doctor'}</p>
+                                    </div>
+                                )}
+
                                 <button
                                     onClick={handleEmergency}
-                                    className="w-full bg-white text-red-600 py-4.5 rounded-2xl font-black text-lg hover:shadow-2xl transition duration-300 transform active:scale-[0.98]"
+                                    className="w-full bg-white text-red-600 py-4 rounded-2xl font-black text-lg hover:shadow-2xl transition duration-300 transform active:scale-95"
                                 >
                                     BROADCAST ALERT
                                 </button>
                             </div>
-                            <AlertTriangle className="absolute -bottom-6 -right-6 w-36 h-36 text-white/10 -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition duration-700" />
+                            <AlertTriangle className="absolute -bottom-6 -right-6 w-36 h-36 text-white/10 -rotate-12" />
                         </div>
                     )}
 
                     {/* Standard Secure Contact */}
-                    <div className="bg-white rounded-[40px] px-8 py-10 border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.04)] ring-1 ring-slate-200/50">
-                        <div className="text-center mb-8">
-                            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-[24px] flex items-center justify-center mx-auto mb-5 border border-blue-100 shadow-sm">
-                                <MessageSquare size={28} />
-                            </div>
-                            <h3 className="text-2xl font-black text-slate-900 leading-tight mb-2 tracking-tight">Standard Notification</h3>
-                            <p className="text-slate-500 text-sm max-w-[210px] mx-auto leading-relaxed font-semibold">Verify identity to safely reach the vehicle driver.</p>
-                        </div>
-
+                    <div className="bg-white rounded-[40px] px-8 py-10 border border-slate-100 shadow-sm ring-1 ring-slate-200/50">
                         {!verified ? (
-                            <div className="space-y-4">
-                                <div className="relative group">
+                            <div className="space-y-4 animate-fadeIn">
+                                <div className="text-center mb-6">
+                                    <h3 className="text-2xl font-black text-slate-900 mb-1">Secure Contact</h3>
+                                    <p className="text-slate-500 text-sm font-bold">Verify identity to reach the owner</p>
+                                </div>
+
+                                {/* Email Input Group */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-2">Email Address</label>
                                     <input
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="your@email.com"
-                                        className="w-full bg-slate-50 border border-slate-200 focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-50 rounded-2xl py-4.5 px-6 outline-none transition-all font-bold text-slate-900 text-center placeholder:text-slate-300"
+                                        placeholder="name@example.com"
+                                        className="w-full bg-slate-50 border-2 border-slate-100 focus:border-blue-600 focus:bg-white rounded-2xl py-4 px-6 outline-none transition-all font-bold text-slate-900 placeholder:text-slate-300 placeholder:font-medium"
                                     />
                                 </div>
+
                                 <button
                                     onClick={handleSendOTP}
-                                    disabled={otpLoading || !email}
-                                    className="w-full bg-slate-900 hover:bg-black text-white py-4.5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all disabled:opacity-20 flex items-center justify-center gap-3 shadow-xl shadow-slate-200 active:scale-[0.98]"
+                                    disabled={otpLoading || !email || !email.includes('@')}
+                                    className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 hover:shadow-lg shadow-slate-200 active:scale-95 flex items-center justify-center gap-3 relative overflow-hidden group"
                                 >
-                                    {otpLoading ? <Loader2 className="animate-spin" size={20} /> : "Validate Identity Credentials"}
+                                    {otpLoading && (
+                                        <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
+                                            <Loader2 className="animate-spin text-white" size={20} />
+                                        </div>
+                                    )}
+                                    <span className={otpLoading ? "opacity-0" : "opacity-100"}>Get Verification Code</span>
                                 </button>
-                                <p className="text-[10px] text-center text-slate-400 font-bold leading-relaxed px-4">
-                                    Your email is only used for temporary authentication and is never stored on the public log.
+
+                                <p className="text-[10px] text-center text-slate-400 font-medium px-4">
+                                    We will send a 6-digit code to verify you are human.
                                 </p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-4 animate-fadeIn">
-                                {qrCode.call_enabled && (
-                                    <a
-                                        href={`tel:${qrCode.owner_mobile}`}
-                                        className="flex flex-col items-center gap-4 bg-blue-50/50 text-blue-600 p-8 rounded-[36px] hover:bg-blue-50 transition-all border border-blue-100/50 group"
-                                    >
-                                        <div className="w-14 h-14 bg-blue-600 text-white rounded-[20px] flex items-center justify-center group-hover:scale-110 transition shadow-lg shadow-blue-200">
-                                            <Phone size={24} />
+                            <div className="space-y-6 animate-fadeIn">
+                                <div className="text-center mb-6">
+                                    <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 border border-emerald-100 px-4 py-1.5 rounded-full mb-4 shadow-sm">
+                                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Secure Session Active</span>
+                                    </div>
+                                    <h3 className="text-xl font-black text-slate-900">How can we help?</h3>
+                                    <p className="text-sm text-slate-400 font-medium mt-1">Contact the owner anonymously.</p>
+                                </div>
+
+                                <div className="space-y-6">
+                                    {/* Virtual Number Display (Fake Masking) */}
+                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">SafeDrive Proxy Number</p>
+                                            <p className="text-lg font-black text-slate-700 tracking-widest font-mono flex items-center gap-2">
+                                                <Lock size={14} className="text-emerald-500" />
+                                                +91 99****0070
+                                            </p>
                                         </div>
-                                        <span className="font-extrabold text-[10px] uppercase tracking-widest leading-none">Voice Call</span>
-                                    </a>
-                                )}
-                                {qrCode.whatsapp_enabled && (
-                                    <a
-                                        href={`https://wa.me/${qrCode.owner_mobile.replace(/\D/g, '')}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex flex-col items-center gap-4 bg-emerald-50/50 text-emerald-600 p-8 rounded-[36px] hover:bg-emerald-50 transition-all border border-emerald-100/50 group"
-                                    >
-                                        <div className="w-14 h-14 bg-emerald-500 text-white rounded-[20px] flex items-center justify-center group-hover:scale-110 transition shadow-lg shadow-emerald-200">
-                                            <MessageSquare size={24} />
+                                        <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100">
+                                            <ShieldCheck size={20} className="text-emerald-500" />
                                         </div>
-                                        <span className="font-extrabold text-[10px] uppercase tracking-widest leading-none">WhatsApp</span>
-                                    </a>
-                                )}
+                                    </div>
+
+                                    <div className="bg-white p-1 rounded-3xl border border-slate-100 shadow-sm">
+                                        <div className="bg-slate-50/50 p-4 rounded-[20px] focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1 mb-2 block">Your Message</label>
+                                            <textarea
+                                                value={relayMessage}
+                                                onChange={(e) => setRelayMessage(e.target.value)}
+                                                placeholder="Example: Your car is blocking the gate, please move it."
+                                                className="w-full bg-transparent border-none outline-none font-bold text-slate-700 placeholder:text-slate-300 min-h-[80px] resize-none text-sm"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <button
+                                            onClick={() => handleRelay('message')}
+                                            disabled={relayLoading}
+                                            className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 hover:bg-slate-800 transition flex items-center justify-center gap-3 active:scale-95 transform"
+                                        >
+                                            {relayLoading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+                                            Send Secure Message
+                                        </button>
+
+                                        <div className="relative flex py-2 items-center">
+                                            <div className="flex-grow border-t border-slate-100"></div>
+                                            <span className="flex-shrink-0 mx-4 text-slate-300 text-[10px] font-black uppercase tracking-widest">Or Call</span>
+                                            <div className="flex-grow border-t border-slate-100"></div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button
+                                                onClick={() => handleRelay('call')}
+                                                disabled={relayLoading}
+                                                className="bg-white text-blue-600 border border-blue-100 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 transition flex flex-col items-center justify-center gap-2"
+                                            >
+                                                <Phone size={16} />
+                                                Request Call Back
+                                            </button>
+                                            <a
+                                                href={`tel:${qrCode.owner_mobile}`}
+                                                className="bg-emerald-50 text-emerald-600 border border-emerald-100 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition flex flex-col items-center justify-center gap-2"
+                                                onClick={(e) => {
+                                                    if (!confirm("Privacy Notice: This will open your phone's dialer. The call will be routed through our system, but your dialer may show the destination number. Proceed?")) {
+                                                        e.preventDefault();
+                                                    }
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-1">
+                                                    <Lock size={12} />
+                                                    <span>Masked Call</span>
+                                                </div>
+                                                <span className="text-[9px] opacity-70">Connect via Proxy</span>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
-
-                {/* Compliance Footer */}
-                <div className="text-center pt-8 pb-4">
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em] mb-4 opacity-60">
-                        System Level Compliant
-                    </p>
-                    <div className="inline-flex items-center gap-3 text-slate-500 bg-white border border-slate-100 px-5 py-2.5 rounded-full text-[10px] font-black shadow-sm ring-1 ring-slate-200/20">
-                        <Lock size={12} className="text-emerald-500" />
-                        256-BIT IDENTITY ENCRYPTION ACTIVE
-                    </div>
-                </div>
             </main>
 
-            {/* Premium OTP Interface */}
+            {/* OTP Interface */}
             {otpSent && !verified && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl animate-in fade-in duration-300">
-                    <div className="bg-white border border-white rounded-[48px] p-12 max-w-sm w-full shadow-[0_48px_100px_rgba(0,0,0,0.2)] animate-in zoom-in-95 duration-500">
-                        <div className="text-center mb-10">
-                            <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-[32px] flex items-center justify-center mx-auto mb-6 ring-8 ring-blue-50 border border-blue-200">
-                                <ShieldCheck size={40} />
-                            </div>
-                            <h2 className="text-3xl font-black mb-3 text-slate-900 tracking-tight leading-none">Identity Check</h2>
-                            <p className="text-sm text-slate-500 font-bold leading-relaxed">
-                                Enter the secret code sent to <br />
-                                <span className="text-blue-600 underline font-black tracking-tight">{maskEmail(email)}</span>
-                            </p>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl">
+                    <div className="bg-white rounded-[40px] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-300">
+                        <div className="text-center mb-8">
+                            <h2 className="text-2xl font-black mb-2 text-slate-900">Verify Identity</h2>
+                            <p className="text-xs text-slate-500 font-bold">Code sent to {maskEmail(email)}</p>
                         </div>
-
                         <input
                             type="text"
                             value={otp}
                             onChange={(e) => setOtp(e.target.value)}
                             placeholder="—— —— ——"
                             maxLength={6}
-                            className="w-full bg-slate-50 border border-slate-200 focus:border-blue-600 focus:bg-white rounded-[28px] py-7 text-center font-black text-4xl tracking-widest outline-none transition-all mb-8 shadow-inner"
+                            className="w-full bg-slate-50 border border-slate-200 focus:border-blue-600 rounded-2xl py-6 text-center font-black text-3xl tracking-[0.5em] outline-none mb-6"
                         />
-
                         <button
                             onClick={handleVerifyOTP}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-[24px] font-black text-xs uppercase tracking-[0.25em] transition-all transform hover:translate-y-[-2px] hover:shadow-2xl shadow-blue-200 active:scale-[0.98]"
+                            className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest"
                         >
-                            Confirm Identity
+                            Verify & Continue
                         </button>
-                        <button
-                            onClick={() => setOtpSent(false)}
-                            className="w-full mt-6 text-slate-400 font-black py-2 hover:text-slate-900 transition-colors text-[10px] uppercase tracking-[0.2em]"
-                        >
-                            Modify Email Credentials
-                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Premium Modal */}
+            {modalConfig.isOpen && (
+                <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-[8px]">
+                    <div className="bg-white rounded-[48px] p-10 max-w-sm w-full shadow-[0_32px_128px_-16px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 border border-white/50 relative overflow-hidden">
+                        {/* Decorative Background for High Priority */}
+                        {modalConfig.priority === 'high' && (
+                            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 via-rose-500 to-red-500" />
+                        )}
+                        {modalConfig.priority === 'success' && (
+                            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500" />
+                        )}
+
+                        <div className="text-center mb-8">
+                            <div className={`w-24 h-24 rounded-[36px] flex items-center justify-center mx-auto mb-6 shadow-xl relative group ${modalConfig.priority === 'high' ? 'bg-red-50 text-red-600 shadow-red-100' :
+                                modalConfig.priority === 'success' ? 'bg-emerald-50 text-emerald-600 shadow-emerald-100' :
+                                    'bg-blue-50 text-blue-600 shadow-blue-100'
+                                }`}>
+                                {modalConfig.priority === 'high' ? <AlertTriangle size={48} className="animate-bounce" /> :
+                                    modalConfig.priority === 'success' ? <CheckCircle2 size={48} /> :
+                                        <Info size={48} />}
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">{modalConfig.title}</h2>
+                            <p className="text-slate-500 font-bold text-sm leading-relaxed px-2">{modalConfig.message}</p>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => {
+                                    if (modalConfig.onConfirm) {
+                                        modalConfig.onConfirm();
+                                    } else {
+                                        closeModal();
+                                    }
+                                }}
+                                className={`w-full py-5 rounded-3xl font-black text-xs uppercase tracking-[0.2em] transition-all transform active:scale-95 shadow-lg ${modalConfig.priority === 'high' ? 'bg-red-600 text-white shadow-red-200 hover:bg-red-700' :
+                                    modalConfig.priority === 'success' ? 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700' :
+                                        'bg-slate-900 text-white shadow-slate-200 hover:bg-slate-800'
+                                    }`}
+                            >
+                                {modalConfig.type === 'confirm' ? 'Yes, Proceed' : 'Dismiss'}
+                            </button>
+
+                            {modalConfig.type === 'confirm' && (
+                                <button
+                                    onClick={closeModal}
+                                    className="w-full bg-white text-slate-400 py-5 rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:text-slate-600 transition-all border border-slate-100"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
