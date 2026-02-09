@@ -531,7 +531,7 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                                             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">SafeDrive Proxy Number</p>
                                             <p className="text-lg font-black text-slate-700 tracking-widest font-mono flex items-center gap-2">
                                                 <Lock size={14} className="text-emerald-500" />
-                                                +91 99****0070
+                                                +91 99***0070
                                             </p>
                                         </div>
                                         <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100">
