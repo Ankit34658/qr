@@ -4,34 +4,46 @@ import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
     try {
-        const { token, method, message } = await request.json();
+        const { token, qr_id, method, message, scanner_identity } = await request.json();
 
-        // 1. Verify token
-        const { data: contactToken, error: tokenError } = await supabase
-            .from('contact_tokens')
-            .select('*, qr_codes(*)')
-            .eq('token', token)
-            .gt('expires_at', new Date().toISOString())
-            .single();
+        let qrCode: any = null;
+        let scannerEmail = scanner_identity || "Anonymous Scanner";
 
-        if (tokenError || !contactToken) {
-            return NextResponse.json({ success: false, error: 'Session expired. Please re-verify identity.' }, { status: 401 });
+        if (token) {
+            // 1. Verify token
+            const { data: contactToken, error: tokenError } = await supabase
+                .from('contact_tokens')
+                .select('*, qr_codes(*)')
+                .eq('token', token)
+                .gt('expires_at', new Date().toISOString())
+                .single();
+
+            if (tokenError || !contactToken) {
+                return NextResponse.json({ success: false, error: 'Session expired. Please re-verify identity.' }, { status: 401 });
+            }
+            qrCode = contactToken.qr_codes;
+            scannerEmail = contactToken.scanner_identifier;
+        } else if (qr_id) {
+            // Unverified Relay
+            const { data, error } = await supabase
+                .from('qr_codes')
+                .select('*')
+                .eq('id', qr_id)
+                .single();
+
+            if (error || !data) {
+                return NextResponse.json({ success: false, error: 'Vehicle not found.' }, { status: 404 });
+            }
+            qrCode = data;
+        } else {
+            return NextResponse.json({ success: false, error: 'Invalid request.' }, { status: 400 });
         }
 
-        const qrCode = contactToken.qr_codes as any;
-
-        if (!qrCode) {
-            console.error("Relay Error: Token found but QR Code data is missing/null.");
-            return NextResponse.json({ success: false, error: 'Vehicle data not found for this token.' }, { status: 404 });
-        }
-
-        console.log("Relay Debug - Token Data:", {
-            tokenId: contactToken.id,
-            scanner: contactToken.scanner_identifier,
+        console.log("Relay Debug:", {
             vehicle: qrCode.vehicle_number,
-            ownerEmail: qrCode.owner_email
+            ownerEmail: qrCode.owner_email,
+            scanner: scannerEmail
         });
-        const scannerEmail = contactToken.scanner_identifier;
 
         // 2. Prepare Transporter
         const transporter = nodemailer.createTransport({

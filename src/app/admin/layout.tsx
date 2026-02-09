@@ -21,7 +21,6 @@ import { supabase } from "@/lib/supabase";
 const sidebarItems = [
     { icon: <LayoutDashboard size={20} />, label: "Dashboard", href: "/admin/dashboard" },
     { icon: <QrCode size={20} />, label: "QR Codes", href: "/admin/qr-codes" },
-    { icon: <Car size={20} />, label: "Vehicles", href: "/admin/vehicles" },
     { icon: <History size={20} />, label: "Scan Logs", href: "/admin/scan-logs" },
     { icon: <BarChart3 size={20} />, label: "Reports", href: "/admin/reports" },
     { icon: <Settings size={20} />, label: "Settings", href: "/admin/settings" },
@@ -204,7 +203,7 @@ export default function AdminLayout({
                         <div className="relative" ref={notificationRef}>
                             <button
                                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                                className="relative p-2.5 text-gray-400 hover:bg-gray-50 rounded-xl transition border border-transparent hover:border-gray-100"
+                                className="relative p-2.5 text-gray-400 hover:bg-gray-50 rounded-xl transition"
                             >
                                 <Bell size={20} />
                                 {notifications.length > 0 && (

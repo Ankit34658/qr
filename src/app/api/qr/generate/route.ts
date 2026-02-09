@@ -7,68 +7,66 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const {
-            vehicle_number,
-            vehicle_type,
-            vehicle_make,
-            vehicle_model,
-            vehicle_color,
-            owner_name,
-            owner_mobile,
-            emergency_contact_1,
-            emergency_contact_1_name,
-            call_enabled,
-            whatsapp_enabled,
-            emergency_enabled,
-            show_owner_name,
-            require_otp,
+            quantity = 1,
             user_id
         } = body;
 
-        const qr_unique_id = nanoid(10);
-        // Fallback to localhost if NEXT_PUBLIC_APP_URL is not set
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        const scan_url = `${baseUrl}/scan/${qr_unique_id}`;
-
-        // Generate QR Data URL
-        const qr_image_url = await QRCode.toDataURL(scan_url, {
-            margin: 2,
-            width: 512,
-            color: {
-                dark: '#1e40af', // Blue 800
-                light: '#ffffff'
-            }
-        });
-
-        const { data: qrCode, error } = await supabase
+        // Fetch the current total count to determine the starting sequential ID
+        const { count: initialCount } = await supabase
             .from('qr_codes')
-            .insert([
-                {
-                    qr_unique_id,
-                    vehicle_number,
-                    vehicle_type: vehicle_type?.toLowerCase() || 'car',
-                    vehicle_make,
-                    vehicle_model,
-                    vehicle_color,
-                    owner_name,
-                    owner_mobile,
-                    emergency_contact_1,
-                    emergency_contact_1_name,
-                    call_enabled,
-                    whatsapp_enabled,
-                    emergency_enabled,
-                    show_owner_name,
-                    require_otp,
-                    qr_image_url,
-                    user_id,
-                    status: 'active'
+            .select('*', { count: 'exact', head: true });
+
+        const nextStartNumber = (initialCount || 0) + 1;
+        const generatedCodes = [];
+
+        for (let i = 0; i < quantity; i++) {
+            const nextNumber = nextStartNumber + i;
+            const qr_unique_id = nextNumber.toString().padStart(2, '0');
+
+            // Use nfctool.com style if configured, otherwise fallback to root route
+            const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://nfctool.com').replace(/\/$/, '');
+            const scan_url = `${appUrl}/${qr_unique_id}`;
+
+            // Generate QR Data URL
+            const qr_image_url = await QRCode.toDataURL(scan_url, {
+                margin: 2,
+                width: 512,
+                color: {
+                    dark: '#1e40af', // Blue 800
+                    light: '#ffffff'
                 }
-            ])
-            .select()
-            .single();
+            });
 
-        if (error) throw error;
+            const qrData = {
+                qr_unique_id,
+                scan_url,
+                qr_image_url,
+                status: 'paused', // Initially paused until activated
+                is_activated: false,
+                user_id: user_id || null,
+                // Default settings
+                call_enabled: true,
+                whatsapp_enabled: true,
+                emergency_enabled: true,
+                show_owner_name: false,
+                require_otp: false, // User requested removing OTP
+            };
 
-        return NextResponse.json({ success: true, qr_code: qrCode });
+            const { data, error } = await supabase
+                .from('qr_codes')
+                .insert([qrData])
+                .select()
+                .single();
+
+            if (error) throw error;
+            generatedCodes.push(data);
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: `${quantity} QR code(s) generated successfully`,
+            qr_codes: generatedCodes
+        });
     } catch (error: any) {
         console.error("QR Generation Error:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });

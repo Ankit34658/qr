@@ -74,9 +74,9 @@ export default function VehiclesPage() {
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             result = result.filter(v =>
-                v.vehicle_number.toLowerCase().includes(query) ||
-                v.owner_name.toLowerCase().includes(query) ||
-                v.vehicle_model?.toLowerCase().includes(query)
+                (v.vehicle_number || "").toLowerCase().includes(query) ||
+                (v.owner_name || "").toLowerCase().includes(query) ||
+                (v.vehicle_model || "").toLowerCase().includes(query)
             );
         }
 
@@ -177,14 +177,14 @@ export default function VehiclesPage() {
                                                     <Car size={24} />
                                                 </div>
                                                 <div>
-                                                    <p className="font-black text-gray-900 leading-tight">{vh.vehicle_number}</p>
-                                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-tighter">{vh.vehicle_make} {vh.vehicle_model}</p>
+                                                    <p className="font-black text-gray-900 leading-tight">{vh.vehicle_number || "PENDING"}</p>
+                                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-tighter">{vh.vehicle_make || "Unassigned"} {vh.vehicle_model || "Tag"}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-8 py-6">
-                                            <p className="font-bold text-gray-800 text-sm">{vh.owner_name}</p>
-                                            <p className="text-xs text-gray-400 font-medium">{vh.owner_mobile}</p>
+                                            <p className="font-bold text-gray-800 text-sm">{vh.owner_name || "New Customer"}</p>
+                                            <p className="text-xs text-gray-400 font-medium">{vh.owner_mobile || "Not Activated"}</p>
                                         </td>
                                         <td className="px-8 py-6">
                                             <div className="flex gap-2">
@@ -212,7 +212,7 @@ export default function VehiclesPage() {
                                                         <Link href={`/admin/qr-codes/${vh.qr_unique_id}`} className="block w-full text-left px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-lg transition">
                                                             Edit Settings
                                                         </Link>
-                                                        <Link href={`/scan/${vh.qr_unique_id}`} target="_blank" className="block w-full text-left px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-lg transition">
+                                                        <Link href={`/${vh.qr_unique_id}`} target="_blank" className="block w-full text-left px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-lg transition">
                                                             View Test Scan
                                                         </Link>
                                                         <button
@@ -259,8 +259,8 @@ export default function VehiclesPage() {
                                         <Car size={20} />
                                     </div>
                                     <div>
-                                        <h3 className="font-black text-gray-900 leading-tight">{vh.vehicle_number}</h3>
-                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{vh.vehicle_make} {vh.vehicle_model}</p>
+                                        <h3 className="font-black text-gray-900 leading-tight">{vh.vehicle_number || "PENDING"}</h3>
+                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{vh.vehicle_make || "Unassigned"} {vh.vehicle_model || "Tag"}</p>
                                     </div>
                                 </div>
                                 <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${vh.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
@@ -271,7 +271,7 @@ export default function VehiclesPage() {
                             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50">
                                 <div>
                                     <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">Owner</p>
-                                    <p className="text-sm font-bold text-gray-800">{vh.owner_name}</p>
+                                    <p className="text-sm font-bold text-gray-800">{vh.owner_name || "New Customer"}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">Privacy</p>

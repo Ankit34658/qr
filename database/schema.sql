@@ -4,8 +4,8 @@
 CREATE TABLE users (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  mobile TEXT,
+  full_name TEXT NOT NULL,
+  mobile_primary TEXT,
   password_hash TEXT NOT NULL,
   role TEXT DEFAULT 'admin',
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -18,17 +18,25 @@ CREATE TABLE qr_codes (
   qr_unique_id TEXT UNIQUE NOT NULL,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   
-  -- Vehicle Information
-  vehicle_number TEXT NOT NULL,
+  -- Activation Status
+  is_activated BOOLEAN DEFAULT FALSE,
+  
+  -- Vehicle Information (Nullable for unassigned codes)
+  vehicle_number TEXT,
   vehicle_make TEXT,
   vehicle_model TEXT,
   vehicle_color TEXT,
-  vehicle_type TEXT CHECK (vehicle_type IN ('car', 'bike', 'truck', 'bus', 'other')),
+  vehicle_type TEXT DEFAULT 'car' CHECK (vehicle_type IN ('car', 'bike', 'truck', 'bus', 'other')),
   
-  -- Owner Information
-  owner_name TEXT NOT NULL,
-  owner_mobile TEXT NOT NULL,
+  -- Owner Information (Nullable for unassigned codes)
+  owner_name TEXT,
+  owner_mobile TEXT,
   owner_email TEXT,
+  
+  -- Tiered Emergency Contacts
+  emergency_contacts JSONB DEFAULT '{}'::JSONB,
+  
+  -- Legacy/Override Emergency Contacts
   emergency_contact_1 TEXT,
   emergency_contact_1_name TEXT,
   emergency_contact_2 TEXT,
@@ -37,6 +45,10 @@ CREATE TABLE qr_codes (
   medical_contact_name TEXT,
   police_contact TEXT,
   police_contact_name TEXT,
+  
+  -- Extra details (Society/Normal)
+  details_type TEXT DEFAULT 'normal' CHECK (details_type IN ('normal', 'society')),
+  details_data JSONB DEFAULT '{}'::JSONB,
   
   -- Privacy Settings
   call_enabled BOOLEAN DEFAULT true,
@@ -48,10 +60,12 @@ CREATE TABLE qr_codes (
   -- Status
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'paused', 'deleted')),
   qr_image_url TEXT,
+  scan_url TEXT,
   
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  location_address TEXT
 );
 
 -- Scan logs for tracking
@@ -67,6 +81,7 @@ CREATE TABLE scan_logs (
   location_address TEXT,
   contact_method TEXT CHECK (contact_method IN ('call', 'whatsapp', 'both', 'none')),
   otp_verified BOOLEAN DEFAULT false,
+  message_content TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -131,3 +146,4 @@ ALTER TABLE scan_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE otp_verifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE emergency_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contact_tokens ENABLE ROW LEVEL SECURITY;
