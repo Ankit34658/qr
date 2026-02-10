@@ -541,13 +541,13 @@ export default function ScanLogsPage() {
                                                     <ExternalLink size={16} className="group-hover:scale-110 transition" />
                                                 </a>
                                                 {/* Send Link Button */}
-                                                {/* <button
+                                                <button
                                                     onClick={() => openSendModal(log)}
                                                     className="p-2 hover:bg-emerald-50 text-emerald-600 rounded-xl transition group"
                                                     title="Send Update Link"
                                                 >
                                                     <Send size={16} className="group-hover:scale-110 transition" />
-                                                </button> */}
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
