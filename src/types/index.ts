@@ -10,6 +10,7 @@ export interface QRCode {
     owner_name?: string | null;
     owner_mobile?: string | null;
     owner_whatsapp?: string | null;
+    insurance_pdf_url?: string | null;
     emergency_contacts?: {
         family?: { name: string; mobile: string; whatsapp: string };
         friend?: { name: string; mobile: string; whatsapp: string };

@@ -16,7 +16,8 @@ export async function POST(request: Request) {
             owner_whatsapp,
             emergency_contacts,
             details_type,
-            details_data
+            details_data,
+            insurance_pdf_url
         } = body;
 
         if (!qr_id || !owner_name || !owner_mobile) {
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
                 emergency_contacts,
                 details_type: details_type || 'normal',
                 details_data,
+                insurance_pdf_url,
                 is_activated: true,
                 status: 'active',
                 updated_at: new Date().toISOString()
