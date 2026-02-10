@@ -275,6 +275,23 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                 const dataUrl = await QRCode.toDataURL(scanUrl, { width: 400, margin: 2 });
                 setQrImageUrl(dataUrl);
 
+                // ✅ Log this scan visit to scan_logs table
+                try {
+                    console.log('🔍 Logging Scan -> UniqueID:', data.qr_unique_id, 'UUID:', data.id);
+                    await fetch('/api/scan/log', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            qr_code_id: data.id,
+                            scan_type: 'normal',
+                            scanner_ip: null,
+                            location: null
+                        })
+                    });
+                } catch (e) {
+                    // Scan log failure should not block page
+                }
+
             } catch (err: any) {
                 setError(err.message);
             } finally {
@@ -284,6 +301,49 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
 
         if (params.id) fetchQRData();
     }, [params.id]);
+
+    // ✅ Pre-fill data if QR code exists (even if deactivated)
+    useEffect(() => {
+        if (qrCode) {
+            setRegData(prev => ({
+                ...prev,
+                owner_name: qrCode.owner_name || "",
+                owner_mobile: qrCode.owner_mobile || "",
+                owner_whatsapp: qrCode.owner_whatsapp || "",
+                vehicle_number: qrCode.vehicle_number || "",
+                vehicle_make: qrCode.vehicle_make || "",
+                vehicle_model: qrCode.vehicle_model || "",
+                vehicle_color: qrCode.vehicle_color || "",
+                vehicle_type: (qrCode.vehicle_type as any) || "car",
+                emergency_contacts: (qrCode.emergency_contacts as any) || {
+                    family: { name: "", mobile: "", whatsapp: "" },
+                    friend: { name: "", mobile: "", whatsapp: "" },
+                    office: { name: "", mobile: "", whatsapp: "" }
+                },
+                details_type: (qrCode.details_type as any) || 'normal',
+                details_data: (qrCode.details_data as any) || {
+                    society_name: "",
+                    flat_number: "",
+                    wing: "",
+                    block_tower: "",
+                    floor: "",
+                    parking_slot: "",
+                    house_number: "",
+                    building_name: "",
+                    street_road: "",
+                    landmark: "",
+                    area_locality: "",
+                    city: "",
+                    state: "",
+                    pincode: "",
+                    blood_group: "",
+                    medical_conditions: "",
+                    allergies: "",
+                    emergency_notes: ""
+                }
+            }));
+        }
+    }, [qrCode]);
 
     const validateStep = (): boolean => {
         if (regStep === 1) {

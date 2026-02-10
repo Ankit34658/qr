@@ -47,6 +47,16 @@ export async function POST(request: Request) {
 
         if (error) throw error;
 
+        // ✅ Also log this activation as a scan event
+        await supabase.from('scan_logs').insert({
+            qr_code_id: qr_id,
+            scan_type: 'normal',
+            scanner_ip: null,
+            location_lat: null,
+            location_lng: null,
+            otp_verified: false
+        });
+
         return NextResponse.json({ success: true, qr_code: data });
     } catch (error: any) {
         console.error("QR Activation Error:", error);
