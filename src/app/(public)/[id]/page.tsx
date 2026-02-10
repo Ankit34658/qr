@@ -1580,13 +1580,13 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                 </div>
             </header>
 
-            <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 px-4 py-8">
+            <main style={{ minHeight: '100%', }} className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 px-4 py-8">
                 <div className="max-w-md mx-auto">
                     {/* Vehicle Card - Only show if vehicle data exists */}
                     {qrCode.vehicle_number && (
                         <div className="relative">
                             <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-3xl blur-xl"></div>
-                            <div className="phone-view relative bg-gradient-to-br from-white via-blue-10/50 to-indigo-50 rounded-3xl p-6 mb-5 border border-blue-100">
+                            <div className="phone-view relative bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-6 mb-5 border border-blue-100">
                                 <div className="flex items-start gap-4 mb-4">
                                     <div className="w-16 h-16 bg-blue-200 rounded-2xl flex items-center justify-center shadow-lg">
                                         {/* ✅ FIXED: Dynamic Vehicle Icon */}
@@ -1713,7 +1713,7 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                                 <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all">
                                     <Siren size={24} />
                                 </div>
-                                <span className="font-bold text-sm text-gray-800">SOS</span>
+                                <span className="font-bold text-sm text-gray-800">Emergency</span>
                             </button>
 
                             {/* Details - Only if any data exists */}
@@ -1745,8 +1745,8 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                         className="w-full bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 text-red-700 rounded-xl p-3 mb-4 hover:from-red-100 hover:to-red-100 hover:border-red-300 active:scale-98 transition-all group"
                     >
                         <div className="flex items-center justify-center gap-2">
-                            <span className="text-red-500 text-lg">🚨</span>
-                            <span className="font-bold text-sm">Emergency Helpline: 24/7 Support</span>
+                            {/* <span className="text-red-500 text-lg"></span> */}
+                            <span className="font-bold text-sm">Helpline Support</span>
                             <Phone size={14} className="text-red-500 group-hover:animate-bounce" />
                         </div>
                     </button>
