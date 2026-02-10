@@ -442,10 +442,10 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
 
     const validateStep = (): boolean => {
         if (regStep === 1) {
-            if (!regData.owner_name?.trim()) {
-                showModal({ type: 'alert', title: 'Name Required', message: 'Please enter your full name.', priority: 'normal' });
-                return false;
-            }
+            // if (!regData.owner_name?.trim()) {
+            //     showModal({ type: 'alert', title: 'Name Required', message: 'Please enter your full name.', priority: 'normal' });
+            //     return false;
+            // }
             const cleanMobile = regData.owner_mobile?.replace(/\D/g, '') || '';
             if (cleanMobile.length < 10) {
                 showModal({ type: 'alert', title: 'Invalid Mobile', message: 'Please enter a valid 10-digit mobile number.', priority: 'normal' });
@@ -954,7 +954,7 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                                     value={regData.owner_name}
                                     onChange={(val) => updateOwnerData('owner_name', val)}
                                     placeholder="Enter your full name"
-                                    required
+                                    
                                 />
 
                                 <InputField
