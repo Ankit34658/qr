@@ -136,7 +136,7 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center gap-6 animate-fadeIn">
             <Link href="/register" className="group flex items-center gap-3 bg-blue-600 text-white px-10 py-5 rounded-3xl font-black text-lg hover:bg-blue-700 transition-all shadow-2xl shadow-blue-200">
-              Get Started Free
+              Create New Account
               <ArrowRight className="group-hover:translate-x-2 transition-transform" />
             </Link>
             <Link href="/login" className="group flex items-center gap-3 bg-white text-gray-900 px-10 py-5 rounded-3xl font-bold text-lg hover:bg-gray-50 transition-all shadow-xl border border-gray-200">

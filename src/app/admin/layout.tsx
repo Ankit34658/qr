@@ -211,7 +211,7 @@ export default function AdminLayout({
                                 )}
                             </button>
                             {isNotificationsOpen && (
-                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg ring-1 ring-gray ring-opacity-5 focus:outline-none z-50">
                                     <div className="p-4 border-b">
                                         <h3 className="text-lg font-bold text-gray-900">Notifications</h3>
                                         <p className="text-xs text-gray-500 mt-1">{notifications.length} recent activities</p>

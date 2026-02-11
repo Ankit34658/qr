@@ -62,10 +62,9 @@ export default function QrCodesPage() {
         setSelectedIds([]);
     };
 
-    // Filtered QR codes
+    // Filtered QR codes - MODIFIED: Search by QR code number (qr_unique_id)
     const filteredQRs = qrCodes.filter(qr => {
-        const matchesSearch = (qr.vehicle_number || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (qr.owner_name || "").toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = (qr.qr_unique_id || "").toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === "all" || qr.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
@@ -461,7 +460,7 @@ export default function QrCodesPage() {
                 <div className="relative flex-grow">
                     <input
                         type="text"
-                        placeholder="Search by vehicle number or owner..."
+                        placeholder="Search by QR code number..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-blue-600 transition outline-none"
