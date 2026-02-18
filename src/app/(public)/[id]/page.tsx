@@ -584,8 +584,8 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
             if (data.success) {
                 showModal({
                     type: 'alert',
-                    title: 'Calling... 📞',
-                    message: `Connecting you to ${callTarget?.name || 'Owner'}. You will receive a call on ${userMobile}.`,
+                    title: '📲 Calling Now...',
+                    message: `We are calling your phone now. Please pick up to connect to ${callTarget?.name || 'Owner'} securely.`,
                     priority: 'success'
                 });
                 setIsCallModalOpen(false);

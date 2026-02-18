@@ -110,7 +110,7 @@ export async function POST(req: Request) {
 
         const data = await response.json();
 
-        if (data.code !== 200) {
+        if (data.code !== 200 && data.cmi_code !== 200) {
             console.error('TeleCMI Error:', data);
             return NextResponse.json(
                 { success: false, error: data.message || 'Failed to initiate call.' },
