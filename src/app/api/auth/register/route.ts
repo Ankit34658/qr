@@ -42,6 +42,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, user });
     } catch (error: any) {
         console.error("Internal Register Error:", error);
+        if (error.cause) console.error("Error Cause:", error.cause);
         return NextResponse.json({ success: false, error: error.message || "Internal Server Error" }, { status: 500 });
     }
 }

@@ -181,6 +181,13 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
     const [insuranceUploading, setInsuranceUploading] = useState(false);
     const [hasPreFilled, setHasPreFilled] = useState(false);
 
+    // Call Masking States
+    const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+    const [scannerPhone, setScannerPhone] = useState("");
+    const [sConfirmPhone, setSConfirmPhone] = useState(""); // Temporary state for modal input
+    const [isCalling, setIsCalling] = useState(false);
+    const [callTarget, setCallTarget] = useState<{ number: string, name: string } | null>(null); // To store who we are calling (Owner, Family, etc)
+
     const [regStep, setRegStep] = useState(1);
 
     // ✅ FIXED: Vehicle Type Definition - Added all types including bus
@@ -379,6 +386,13 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
         };
 
         if (params.id) fetchQRData();
+
+        // Load scanner phone from local storage
+        const savedPhone = localStorage.getItem('scanner_phone');
+        if (savedPhone) {
+            setScannerPhone(savedPhone);
+            setSConfirmPhone(savedPhone);
+        }
     }, [params.id]);
 
     // ✅ FIXED: Pre-fill data - ONLY ONCE on initial load to avoid wiping what the user types!
@@ -535,6 +549,71 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
         });
     };
 
+    const initiateSecureCall = (targetNumber: string, targetName: string) => {
+        // If we don't have scanner's phone, open modal
+        if (!scannerPhone) {
+            setCallTarget({ number: targetNumber, name: targetName });
+            setSConfirmPhone(""); // Reset input for fresh entry
+            setIsCallModalOpen(true);
+            return;
+        }
+
+        // If we have phone, confirm and call
+        performCall(targetNumber, scannerPhone);
+    };
+
+    const performCall = async (targetMobile: string, userMobile: string) => {
+        setIsCalling(true);
+        try {
+            // Save to local storage for future ease
+            localStorage.setItem('scanner_phone', userMobile);
+            setScannerPhone(userMobile);
+
+            const response = await fetch('/api/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    qr_id: qrCode?.id,
+                    scanner_mobile: userMobile,
+                    target_mobile: targetMobile // Optional: if we want to call specific number (emergency), otherwise backend defaults to owner
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showModal({
+                    type: 'alert',
+                    title: 'Calling... 📞',
+                    message: `Connecting you to ${callTarget?.name || 'Owner'}. You will receive a call on ${userMobile}.`,
+                    priority: 'success'
+                });
+                setIsCallModalOpen(false);
+            } else {
+                throw new Error(data.error || 'Failed to initiate call');
+            }
+        } catch (error: any) {
+            showModal({ type: 'alert', title: 'Call Failed', message: error.message, priority: 'high' });
+        } finally {
+            setIsCalling(false);
+        }
+    };
+
+    const handleCallSubmit = () => {
+        if (!sConfirmPhone || sConfirmPhone.length < 10) {
+            showModal({ type: 'alert', title: 'Invalid Mobile', message: 'Please enter a valid 10-digit mobile number.', priority: 'normal' });
+            return;
+        }
+
+        // If callTarget is set, use that. If not, default to Owner (using backend logic or passed param)
+        // Actually, for Owner call, we might not have the number on frontend if we want to be super secure, 
+        // but here we already have `qrCode.owner_mobile`.
+        // Let's use the logic: If `callTarget` is set, call that. If not, call Owner.
+
+        const target = callTarget?.number || qrCode?.owner_mobile || "";
+        performCall(target, sConfirmPhone);
+    };
+
     // Loading
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
@@ -597,7 +676,8 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                                     <div className="grid grid-cols-2 gap-2">
                                         <button
                                             onClick={() => {
-                                                window.location.href = `tel:${contact.data.mobile}`;
+                                                // Secure Call for Emergency Contact
+                                                initiateSecureCall(contact.data.mobile, contact.label);
                                                 closeModal();
                                             }}
                                             className="bg-blue-600 text-white py-2.5 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
@@ -674,7 +754,9 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                                     {qrCode?.owner_mobile && (
                                         <div className="flex justify-between items-center py-1">
                                             <span className="text-sm text-gray-600">Mobile</span>
-                                            <span className="font-semibold text-gray-900">+91 {qrCode.owner_mobile}</span>
+                                            <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs">
+                                                {maskPhone(qrCode.owner_mobile)}
+                                            </span>
                                         </div>
                                     )}
                                 </div>
@@ -852,6 +934,52 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
         );
     };
 
+    const renderCallModal = () => {
+        if (!isCallModalOpen) return null;
+
+        return (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
+                <div className="bg-white rounded-[32px] p-6 max-w-sm w-full shadow-2xl">
+                    <div className="text-center mb-6">
+                        <div className="w-20 h-20 bg-green-100 rounded-[24px] flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <PhoneCall size={36} className="text-green-600" />
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-900 mb-1">Call Owner</h2>
+                        <p className="text-sm text-gray-500">Enter your number to connect. Your number will be masked.</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <InputField
+                            label="Your Mobile Number"
+                            value={sConfirmPhone}
+                            onChange={(val) => setSConfirmPhone(val.replace(/\D/g, ''))}
+                            placeholder="Enter your mobile"
+                            prefix="+91"
+                            maxLength={10}
+                            type="tel"
+                        />
+
+                        <button
+                            onClick={handleCallSubmit}
+                            disabled={isCalling}
+                            className="w-full bg-green-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                        >
+                            {isCalling ? <Loader2 className="animate-spin" /> : <PhoneCall size={20} />}
+                            {isCalling ? "Connecting..." : "Connect Securely"}
+                        </button>
+
+                        <button
+                            onClick={() => setIsCallModalOpen(false)}
+                            className="w-full py-3 text-gray-400 font-bold"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     // ========== REGISTRATION FORM ==========
     if (!qrCode.is_activated || isUpdating) {
         return (
@@ -954,7 +1082,7 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                                     value={regData.owner_name}
                                     onChange={(val) => updateOwnerData('owner_name', val)}
                                     placeholder="Enter your full name"
-                                    
+
                                 />
 
                                 <InputField
@@ -1676,7 +1804,7 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                             {/* Call Owner - Only if mobile exists */}
                             {qrCode.owner_mobile && (
                                 <button
-                                    onClick={() => window.location.href = `tel:${qrCode.owner_mobile}`}
+                                    onClick={() => initiateSecureCall(qrCode.owner_mobile!, "Owner")}
                                     className="group bg-gradient-to-b from-white to-gray-50 border-2 border-gray-200 p-5 rounded-2xl flex flex-col items-center gap-2 hover:shadow-2xl hover:border-blue-400 hover:bg-gradient-to-b hover:from-blue-50 hover:to-white active:scale-95 transition-all"
                                 >
                                     <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all">
@@ -1741,7 +1869,7 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
 
                     {/* Emergency Helpline */}
                     <button
-                        onClick={() => window.location.href = 'tel:8252472186'}
+                        onClick={() => initiateSecureCall('8252472186', "Helpline")}
                         className="w-full bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 text-red-700 rounded-xl p-3 mb-4 hover:from-red-100 hover:to-red-100 hover:border-red-300 active:scale-98 transition-all group"
                     >
                         <div className="flex items-center justify-center gap-2">
@@ -1767,6 +1895,7 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
             </main>
 
             {renderModal()}
+            {renderCallModal()}
         </div>
     );
 }
