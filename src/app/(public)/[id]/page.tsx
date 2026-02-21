@@ -40,7 +40,8 @@ import {
     Upload,
     FileText,
     PhoneCall,
-    Siren
+    Siren,
+    X
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -356,31 +357,28 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
                 });
 
                 setQrCode(data as QRCodeType);
+                setLoading(false); // Move this up for faster UI response
 
-                const scanUrl = `${window.location.origin}/${data.qr_unique_id}`;
-                const dataUrl = await QRCode.toDataURL(scanUrl, { width: 400, margin: 2 });
-                setQrImageUrl(dataUrl);
-
-                // ✅ Log this scan visit to scan_logs table
-                try {
-                    console.log('🔍 Logging Scan -> UniqueID:', data.qr_unique_id, 'UUID:', data.id);
-                    await fetch('/api/scan/log', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            qr_code_id: data.id,
-                            scan_type: 'normal',
-                            scanner_ip: null,
-                            location: null
-                        })
-                    });
-                } catch (e) {
-                    // Scan log failure should not block page
+                // Only generate QR if needed (not activated yet or updating)
+                if (!data.is_activated || isUpdating) {
+                    const scanUrl = `${window.location.origin}/${data.qr_unique_id}`;
+                    QRCode.toDataURL(scanUrl, { width: 400, margin: 2 }).then(setQrImageUrl);
                 }
+
+                // ✅ Log this scan visit to scan_logs table (background)
+                fetch('/api/scan/log', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        qr_code_id: data.id,
+                        scan_type: 'normal',
+                        scanner_ip: null,
+                        location: null
+                    })
+                }).catch(() => { });
 
             } catch (err: any) {
                 setError(err.message);
-            } finally {
                 setLoading(false);
             }
         };
@@ -656,8 +654,15 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
 
             return (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
-                    <div className="bg-white rounded-[32px] p-6 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="text-center mb-6">
+                    <div className="bg-white rounded-[32px] p-6 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto relative">
+                        <button
+                            onClick={closeModal}
+                            className="absolute left-6 top-6 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-all z-20"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div className="text-center mb-6 pt-4">
                             <div className="w-20 h-20 rounded-[24px] flex items-center justify-center mx-auto mb-4 shadow-lg bg-gradient-to-br from-red-500 to-rose-600">
                                 <AlertTriangle size={36} className="text-white" />
                             </div>
@@ -726,10 +731,16 @@ export default function ScanPage({ params: paramsPromise }: { params: Promise<{ 
 
             return (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-                    <div className="bg-white rounded-[32px] p-6 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-[32px] p-6 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto relative">
+                        <button
+                            onClick={closeModal}
+                            className="absolute left-6 top-6 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-all z-20"
+                        >
+                            <X size={20} />
+                        </button>
 
                         {/* Header */}
-                        <div className="text-center mb-6">
+                        <div className="text-center mb-6 pt-4">
                             <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[24px] flex items-center justify-center mx-auto mb-4 shadow-lg">
                                 <Info size={36} className="text-white" />
                             </div>

@@ -65,10 +65,7 @@ export default function LandingPage() {
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <Link href="/register" className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold text-sm hover:bg-blue-700 transition shadow-lg">
-            Create Tag
-          </Link>
-          <Link href="/login" className="text-gray-600 hover:text-gray-900 px-4 py-3 font-semibold text-sm transition">
+          <Link href="/login" className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold text-sm hover:bg-blue-700 transition shadow-lg">
             Login
           </Link>
         </div>
@@ -104,10 +101,7 @@ export default function LandingPage() {
                 Security
               </button>
               <hr className="border-gray-100" />
-              <Link href="/register" className="block bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold text-center hover:bg-blue-700 transition">
-                Create Tag
-              </Link>
-              <Link href="/login" className="block text-center text-gray-600 hover:text-gray-900 px-4 py-2 font-semibold transition">
+              <Link href="/login" className="block bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold text-center hover:bg-blue-700 transition">
                 Login
               </Link>
             </div>
@@ -135,13 +129,9 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-6 animate-fadeIn">
-            <Link href="/register" className="group flex items-center gap-3 bg-blue-600 text-white px-10 py-5 rounded-3xl font-black text-lg hover:bg-blue-700 transition-all shadow-2xl shadow-blue-200">
-              Create New Account
+            <Link href="/login" className="group flex items-center gap-3 bg-blue-600 text-white px-10 py-5 rounded-3xl font-black text-lg hover:bg-blue-700 transition-all shadow-2xl shadow-blue-200">
+              Go to Login
               <ArrowRight className="group-hover:translate-x-2 transition-transform" />
-            </Link>
-            <Link href="/login" className="group flex items-center gap-3 bg-white text-gray-900 px-10 py-5 rounded-3xl font-bold text-lg hover:bg-gray-50 transition-all shadow-xl border border-gray-200">
-              Admin Portal
-              <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
             </Link>
           </div>
 
@@ -280,11 +270,8 @@ export default function LandingPage() {
             Join thousands of smart vehicle owners who prioritize safety and privacy.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
-            <Link href="/register" className="w-full sm:w-auto bg-blue-600 text-white px-12 py-5 rounded-3xl font-bold text-lg hover:bg-blue-700 transition-all shadow-xl">
-              Create Your QR Tag
-            </Link>
-            <Link href="/login" className="w-full sm:w-auto px-12 py-5 border-2 border-gray-200 rounded-3xl font-bold text-lg hover:bg-gray-50 transition-all text-gray-700">
-              Admin Login
+            <Link href="/login" className="w-full sm:w-auto bg-blue-600 text-white px-12 py-5 rounded-3xl font-bold text-lg hover:bg-blue-700 transition-all shadow-xl">
+              Login to Portal
             </Link>
           </div>
         </div>
