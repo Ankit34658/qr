@@ -1,0 +1,30 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+        - rm -f .env.production
+        - echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env.production
+        - echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env.production
+        - echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env.production
+        - echo "EMAIL_SERVICE=$EMAIL_SERVICE" >> .env.production
+        - echo "EMAIL_USER=$EMAIL_USER" >> .env.production
+        - echo "EMAIL_PASSWORD=$EMAIL_PASSWORD" >> .env.production
+        - echo "EMAIL_HOST=$EMAIL_HOST" >> .env.production
+        - echo "EMAIL_PORT=$EMAIL_PORT" >> .env.production
+        - echo "EMAIL_SECURE=$EMAIL_SECURE" >> .env.production
+        - echo "TELECMI_APP_ID=$TELECMI_APP_ID" >> .env.production
+        - echo "TELECMI_APP_SECRET=$TELECMI_APP_SECRET" >> .env.production
+        - echo "TELECMI_VIRTUAL_NUMBER=$TELECMI_VIRTUAL_NUMBER" >> .env.production
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '*/'
+  cache:
+    paths:
+      - .next/cache/*/
+      - node_modules/*/
